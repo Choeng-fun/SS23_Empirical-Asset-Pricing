@@ -17,7 +17,6 @@ library(tidyverse)
 library(rollRegres)
 library(roll)
 library(zoo)
-library(ggplot230)
 ```
 
 ```{r}
@@ -141,24 +140,50 @@ roll.sd.data <- panel_reduced %>%
 ####B/M
 ```{r}
 # Select only necessary variables from the comprehensive data set
-panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001")]
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001", "WC05202", "WC18100", "WC18198")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 count_table <- panel_reduced_val[,.N,by=Id]
 panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
 
 #WC05001 Market Price, WC05476 Book Value per Share
-panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
+#WC05001 Market Price, WC05202 Earnings per Share - Fiscal Year End
+#WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+
+
+panel_reduced_val <- panel_reduced_val[,`B/M` := WC05476/WC05001]
+panel_reduced_val <- panel_reduced_val[,`E/P` := WC05202/WC05001]
+panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
+
 panel_reduced_val <- panel_reduced_val %>% 
-  select(Id, ym, MV.USD, RET.USD, BTM)
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+
 ```
 
-####P/E
+####E/P
 
-####EV/CFO
+####EBITDA/EV
+
+
 
 ###Size
 ####Log_MV
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_lnMV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_SMB[,.N,by=Id]
+panel_reduced_SMB <- panel_reduced_SMB[count_table[N>12]$Id]
+
+#WC05001 Market Price, WC05476 Book Value per Share
+
+
+panel_reduced_SMB <- panel_reduced_SMB[, Log_MV := WC05476/WC05001]
+
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+```
 
 ###Momentum
 ####RSI
@@ -166,10 +191,53 @@ panel_reduced_val <- panel_reduced_val %>%
 ####Alpha_3
 ####Alpha_5
 ####Momentum_12_2
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_momentum <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_momentum[,.N,by=Id]
+panel_reduced_momentum <- panel_reduced_momentum[count_table[N>12]$Id]
+
+# Define a function to find the lagged value of return for a stock
+create_lag <- function(x, n) c(rep(NA, n), head(x, -n))
+
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_momentum[, Before2 := create_lag(RET.USD, 2), by = Id]
+panel_reduced_momentum[, Before3 := create_lag(RET.USD, 3), by = Id]
+panel_reduced_momentum[, Before4 := create_lag(RET.USD, 4), by = Id]
+panel_reduced_momentum[, Before5 := create_lag(RET.USD, 5), by = Id]
+panel_reduced_momentum[, Before6 := create_lag(RET.USD, 6), by = Id]
+panel_reduced_momentum[, Before7 := create_lag(RET.USD, 7), by = Id]
+panel_reduced_momentum[, Before8 := create_lag(RET.USD, 8), by = Id]
+panel_reduced_momentum[, Before9 := create_lag(RET.USD, 9), by = Id]
+panel_reduced_momentum[, Before10 := create_lag(RET.USD, 10), by = Id]
+panel_reduced_momentum[, Before11 := create_lag(RET.USD, 11), by = Id]
+panel_reduced_momentum[, Before12 := create_lag(RET.USD, 12), by = Id]
+
+# Momentum_12_2: Past performance of stocks: use geometric mean to calculate the compound return of a stock over the past twelve months, but ignores the previous month
+panel_reduced_momentum <- panel_reduced_momentum[,Momentum_12_2:=((100+Before2)*(100+Before3)*(100+Before4)*(100+Before5)*(100+Before6)*(100+Before7)*(100+Before8)*(100+Before9)*(100+Before10)*(100+Before11)*(100+Before12))^(1/10)-100]
+
+```
 ###Yield
 ####DY
 ###Quality
 ####ROE
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_ROE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08301")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_ROE[,.N,by=Id]
+panel_reduced_ROE <- panel_reduced_ROE[count_table[N>12]$Id]
+
+#WC08301 Return on Equity -- Total (%)
+panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC08301] 
+
+panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
+
+```
 ####ROA
 
 ###Low Volatility
@@ -189,8 +257,57 @@ panel_reduced_val <- panel_reduced_val %>%
 
 ###Others
 ####MV
-####AG
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_MV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
 
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_MV[,.N,by=Id]
+panel_reduced_MV <- panel_reduced_MV[count_table[N>12]$Id]
+```
+
+####AG
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_inv<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_inv[,.N,by=Id]
+panel_reduced_inv <- panel_reduced_inv[count_table[N>12]$Id]
+
+#WC02999 Total Assets
+panel_reduced_inv <- panel_reduced_inv %>% 
+  mutate(Lagged_Asset = shift(WC02999, n = 12)) %>%
+  mutate(AG = (WC02999 - Lagged_Asset) / Lagged_Asset *100) %>% 
+  select(-Lagged_Asset)
+
+panel_reduced_inv <- panel_reduced_inv %>% 
+  select(Id, ym, MV.USD, RET.USD, AG)
+```
+
+
+##Facotr Data FF5
+```{r}
+##Factor data for FF5
+names(coef_36) <-  c("Id", "ym", "RET.USD", "alpha_36", "beta_36", "coef_36")
+
+Factor_data_ff5 <- coef_36 %>% 
+  select(Id, ym, beta_36) %>%
+  full_join(panel_reduced_val, by = c("Id", "ym")) %>% 
+  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`) %>% 
+  full_join(panel_reduced_ROE, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`, ROE) %>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`, ROE, AG) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, RET.USD, beta_36, MV.USD, `B/M`, ROE, AG, Momentum_12_2)
+
+names(Factor_data_ff5) <- c("Id", "ym", "RET.USD", "Beta_3", "MV", "`B/M`", "ROE", "AG", "Mom_12_2")
+```
+  
+  
+  
+  
 ##Factor data
 ```{r}
 names(coef_12) <-  c("Id", "ym", "RET.USD", "alpha_12", "beta_12", "coef_12")
