@@ -1,0 +1,11 @@
+---
+title: "Variable_Creation_June_21"
+author: "Yasu and yuru"
+date: '2023-06-21'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
