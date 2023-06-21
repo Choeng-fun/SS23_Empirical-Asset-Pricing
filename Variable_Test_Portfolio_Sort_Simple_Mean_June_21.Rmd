@@ -152,6 +152,8 @@ panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
 panel_reduced_val <- panel_reduced_val %>% 
   select(Id, ym, MV.USD, RET.USD, BTM)
 
+""``
+
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_val <- panel_reduced_val[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","BTM")]
 setorder(panel_reduced_val,ym,BTM) 
