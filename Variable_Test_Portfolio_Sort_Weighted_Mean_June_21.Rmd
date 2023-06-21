@@ -1,0 +1,723 @@
+---
+title: "Variable_Test_Portfolio_Sort_Weighted_Mean_June_21"
+output: html_document
+date: '2023-06-21'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Library Import
+```{r}
+library(data.table)
+library(tidyr)
+library(tidyverse)
+library(rollRegres)
+library(roll)
+library(zoo)
+```
+
+```{r}
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_May28.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
+panel_country <- as.data.table(panel_country)
+```
+
+##Create regression data
+###Coefficients
+```{r}
+#merging panel_country with DTB6_monthly(risk free rate) 
+panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+```
+
+```{r}
+panel_reduced[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+panel_reduced[, RE.USD:=RET.USD-DTB6]
+panel_reduced[, REM.USD:=MRET.USD-DTB6]
+panel_reduced <- setorderv(panel_reduced, c("ym"))
+```
+
+```{r}
+coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
+```
+
+#### 1-Year
+```{r}
+coef_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(12, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+####3-Year
+```{r}
+coef_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(36, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+#### 5-Year
+```{r}
+coef_60 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(60, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+###Sigma
+
+```{r}
+resid.fun <- . %>% as.data.frame %>% lm %>% .$residuals
+```
+
+#### 1-Year
+
+```{r}
+resid_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(12, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+#### 3-Year
+
+```{r}
+resid_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(36, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+
+#### 5-Year
+
+```{r}
+resid_60 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(60, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+###Monthly Standard Deviation
+```{r}
+roll.sd.data <- panel_reduced %>%
+  group_by(Id)%>%
+  mutate(SD.RET.USD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
+  ungroup
+```
+
+
+##Value
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_val[,.N,by=Id]
+panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
+
+#WC05001 Market Price, WC05476 Book Value per Share
+panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_val <- panel_reduced_val[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","BTM")]
+setorder(panel_reduced_val,ym,BTM) 
+panel_reduced_val <- panel_reduced_val[, Decile := ntile(BTM, 10), by = ym]
+panel_reduced_val <- panel_reduced_val[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_val_w <- panel_reduced_val %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_val = `10`-`1`)
+```
+
+
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_val_w <- as.data.table(portfolio_returns_val_w)
+portfolio_returns_val_w[,t.test(Ret_val)]
+```
+
+##Size
+```{r}
+panel_reduced_SMB <- panel_country[!is.na(RET) & !is.na(MV),c("Id","ym","RET","MV")]
+
+setorder(panel_reduced_SMB,ym,-MV) 
+
+hlpvariable <-  panel_reduced_SMB[,.(Id,pf.size = ifelse((cumsum(MV)/sum(MV))>=0.9,"Small","Big")),by=ym]
+
+panel_reduced_SMB <- merge(panel_reduced_SMB,hlpvariable,by=c("ym","Id"))
+```
+
+```{r}
+portfolio_returns_SMB_w <- panel_reduced_SMB %>% # this operator nests functions
+  group_by(ym,pf.size)%>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET, coalesce(MV, 0), na.rm = T))%>% # vw returns using lagged mcap
+  spread(pf.size,ret.port) %>% # create one column for each group
+  mutate(SMB = Small-Big)
+```
+
+```{r}
+portfolio_returns_SMB_w <- as.data.table(portfolio_returns_SMB_w)
+portfolio_returns_SMB_w[,t.test(SMB)]
+```
+
+
+##Momentum 
+###Geometric menal
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_momentum <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_momentum[,.N,by=Id]
+panel_reduced_momentum <- panel_reduced_momentum[count_table[N>12]$Id]
+
+# Define a function to find the lagged value of return for a stock
+create_lag <- function(x, n) c(rep(NA, n), head(x, -n))
+
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_momentum[, Before3 := create_lag(RET.USD, 3), by = Id]
+panel_reduced_momentum[, Before4 := create_lag(RET.USD, 4), by = Id]
+panel_reduced_momentum[, Before5 := create_lag(RET.USD, 5), by = Id]
+panel_reduced_momentum[, Before6 := create_lag(RET.USD, 6), by = Id]
+panel_reduced_momentum[, Before7 := create_lag(RET.USD, 7), by = Id]
+panel_reduced_momentum[, Before8 := create_lag(RET.USD, 8), by = Id]
+panel_reduced_momentum[, Before9 := create_lag(RET.USD, 9), by = Id]
+panel_reduced_momentum[, Before10 := create_lag(RET.USD, 10), by = Id]
+panel_reduced_momentum[, Before11 := create_lag(RET.USD, 11), by = Id]
+panel_reduced_momentum[, Before12 := create_lag(RET.USD, 12), by = Id]
+
+# Momentum_12_2: Past performance of stocks: use geometric mean to calculate the compound return of a stock over the past twelve months, but ignores the previous month
+panel_reduced_momentum <- panel_reduced_momentum[,Momentum_12_2:=((100+Before3)*(100+Before4)*(100+Before5)*(100+Before6)*(100+Before7)*(100+Before8)*(100+Before9)*(100+Before10)*(100+Before11)*(100+Before12))^(1/10)-100]
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_momentum <- panel_reduced_momentum[!is.na(Momentum_12_2),c("Id","ym","MV.USD","RET.USD","Momentum_12_2")]
+setorder(panel_reduced_momentum,ym,Momentum_12_2) 
+panel_reduced_momentum <- panel_reduced_momentum[, Decile := ntile(Momentum_12_2, 10), by = ym]
+panel_reduced_momentum <- panel_reduced_momentum[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_momentum_w <- panel_reduced_momentum %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_Momentum = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_momentum_w <- as.data.table(portfolio_returns_momentum_w)
+portfolio_returns_momentum_w[,t.test(Ret_Momentum)]
+```
+
+###RSI
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_rsi <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_rsi[,.N,by=Id]
+panel_reduced_rsi <- panel_reduced_rsi[count_table[N>12]$Id]
+
+
+panel_reduced_rsi[, gain := ifelse(RET.USD>0, RET.USD, 0)]
+panel_reduced_rsi[, loss := ifelse(RET.USD<0, -RET.USD, 0)]
+
+panel_reduced_rsi[, average_gain := frollmean(gain, 12, align = "right"), by = Id]
+panel_reduced_rsi[, average_loss := frollmean(loss, 12, align = "right"), by = Id]
+panel_reduced_rsi[, RS := average_gain/average_loss]
+panel_reduced_rsi[, RSI := 100 - (100/(1+RS))]
+
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_rsi <- panel_reduced_rsi[!is.na(RSI),c("Id","ym","MV.USD","RET.USD","RSI")]
+setorder(panel_reduced_rsi,ym,RSI) 
+panel_reduced_rsi <- panel_reduced_rsi[, Decile := ntile(RSI, 10), by = ym]
+panel_reduced_rsi <- panel_reduced_rsi[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_rsi_w <- panel_reduced_rsi %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_rsi = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_rsi_w <- as.data.table(portfolio_returns_rsi_w)
+portfolio_returns_rsi_w[,t.test(Ret_rsi)]
+```
+###Historical Alpha 
+####1-Year
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_alpha <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_alpha[,.N,by=Id]
+panel_reduced_alpha <- panel_reduced_alpha[count_table[N>12]$Id]
+
+panel_reduced_alpha <- panel_reduced_alpha %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(coef_12, by = c("Id", "ym"))
+
+names(panel_reduced_alpha) <- c("Id", "ym", "MV.USD", "RET.USD", "alpha", "beta", "coef")
+
+panel_reduced_alpha <- panel_reduced_alpha %>% 
+  select(Id, ym, MV.USD, RET.USD, alpha)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_alpha <- panel_reduced_alpha[!is.na(alpha),c("Id","ym","MV.USD","RET.USD","alpha")]
+setorder(panel_reduced_alpha,ym,alpha)
+panel_reduced_alpha <- panel_reduced_alpha[, Decile := ntile(alpha, 10), by = ym]
+panel_reduced_alpha <- panel_reduced_alpha[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_alpha_w <- panel_reduced_alpha %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_alpha = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_alpha_w <- as.data.table(portfolio_returns_alpha_w)
+portfolio_returns_alpha_w[,t.test(Ret_alpha)]
+```
+
+
+
+##Yield
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_yield<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05101", "WC05001")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_yield[,.N,by=Id]
+panel_reduced_yield <- panel_reduced_yield[count_table[N>12]$Id]
+
+#WC05101 Dividends per Share WC05001 Market Price
+
+panel_reduced_yield <- panel_reduced_yield[, DY:= WC05101/WC05001*100]
+panel_reduced_yield <- panel_reduced_yield %>% 
+  select(Id, ym, MV.USD, RET.USD, DY)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_yield <- panel_reduced_yield[!is.na(DY),c("Id","ym","MV.USD","RET.USD","DY")]
+setorder(panel_reduced_yield,ym,DY) 
+panel_reduced_yield <- panel_reduced_yield[, Decile := ntile(DY, 10), by = ym]
+panel_reduced_yield <- panel_reduced_yield[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_yield <- panel_reduced_yield %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_yield = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_yield <- as.data.table(portfolio_returns_yield)
+portfolio_returns_yield[,t.test(Ret_yield)]
+```
+
+
+##Profitability
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_prof <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08301")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_prof[,.N,by=Id]
+panel_reduced_prof <- panel_reduced_prof[count_table[N>12]$Id]
+
+#WC08301 Return on Equity -- Total (%)
+panel_reduced_prof <- panel_reduced_prof[,ROE:=WC08301] 
+
+panel_reduced_prof <- panel_reduced_prof %>% select(Id, ym, MV.USD, RET.USD, ROE)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+
+panel_reduced_prof <- panel_reduced_prof[!is.na(ROE),c("Id","ym","MV.USD","RET.USD","ROE")]
+setorder(panel_reduced_prof,ym,ROE)
+panel_reduced_prof <- panel_reduced_prof[, Decile := ntile(ROE, 10), by = ym] 
+panel_reduced_prof <- panel_reduced_prof[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+
+portfolio_returns_prof <- panel_reduced_prof %>%
+  group_by(ym,Decile) %>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(Ret_prof = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_prof <- as.data.table(portfolio_returns_prof)
+portfolio_returns_prof[,t.test(Ret_prof)]
+```
+
+
+##Investment
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_inv<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_inv[,.N,by=Id]
+panel_reduced_inv <- panel_reduced_inv[count_table[N>12]$Id]
+
+#WC02999 Total Assets
+panel_reduced_inv <- panel_reduced_inv %>% 
+  mutate(Lagged_Asset = shift(WC02999, n = 12)) %>%
+  mutate(Change_Asset = (WC02999 - Lagged_Asset) / Lagged_Asset *100) %>% 
+  select(-Lagged_Asset)
+
+panel_reduced_inv <- panel_reduced_inv %>% 
+  select(Id, ym, MV.USD, RET.USD, Change_Asset)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_inv <- panel_reduced_inv[!is.na(Change_Asset),c("Id","ym","MV.USD","RET.USD","Change_Asset")]
+setorder(panel_reduced_inv,ym,Change_Asset) 
+panel_reduced_inv <- panel_reduced_inv[, Decile := ntile(Change_Asset, 10), by = ym]
+panel_reduced_inv <- panel_reduced_inv[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the conservative (stocks in the 1st decile), short the aggresive(stocks in the 10th decile), and get the momentum return
+portfolio_returns_inv <- panel_reduced_inv %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_inv = `1`-`10`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_inv <- as.data.table(portfolio_returns_inv)
+portfolio_returns_inv[,t.test(Ret_inv)]
+```
+
+
+##Growth 
+###EPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_eps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05202")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_eps[,.N,by=Id]
+panel_reduced_eps <- panel_reduced_eps[count_table[N>12]$Id]
+
+#WC05202 EPS, WC05508 SPS
+panel_reduced_eps <- panel_reduced_eps %>% 
+  mutate(Lagged_EPS = shift(WC05202, n = 12)) %>%
+  mutate(Growth_Rate_EPS = (WC05202 - Lagged_EPS) / Lagged_EPS *100)
+
+panel_reduced_eps <- panel_reduced_eps %>% 
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_eps <- panel_reduced_eps[!is.na(Growth_Rate_EPS),c("Id","ym","MV.USD","RET.USD","Growth_Rate_EPS")]
+setorder(panel_reduced_eps,ym,Growth_Rate_EPS) 
+panel_reduced_eps <- panel_reduced_eps[, Decile := ntile(Growth_Rate_EPS, 10), by = ym]
+panel_reduced_eps <- panel_reduced_eps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_eps <- panel_reduced_eps %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_eps = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_eps <- as.data.table(portfolio_returns_eps)
+portfolio_returns_eps[,t.test(Ret_eps)]
+```
+
+###SPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "WC05508")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sps[,.N,by=Id]
+panel_reduced_sps <- panel_reduced_sps[count_table[N>12]$Id]
+
+#WC05508 SPS
+panel_reduced_sps <- panel_reduced_sps %>% 
+  mutate(Lagged_SPS = shift(WC05508, n = 12)) %>%
+  mutate(Growth_Rate_SPS = (WC05508 - Lagged_SPS) / Lagged_SPS *100)
+
+panel_reduced_sps <- panel_reduced_sps %>% 
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_sps <- panel_reduced_sps[!is.na(Growth_Rate_SPS),c("Id","ym","MV.USD","RET.USD","Growth_Rate_SPS")]
+setorder(panel_reduced_sps,ym,Growth_Rate_SPS) 
+panel_reduced_sps <- panel_reduced_sps[, Decile := ntile(Growth_Rate_SPS, 10), by = ym]
+panel_reduced_sps <- panel_reduced_sps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_sps <- panel_reduced_sps %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_sps = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_sps <- as.data.table(portfolio_returns_sps)
+portfolio_returns_sps[,t.test(Ret_sps)]
+```
+
+##Low Volatility
+###Beta
+####1-Year
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_beta <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_beta[,.N,by=Id]
+panel_reduced_beta <- panel_reduced_beta[count_table[N>12]$Id]
+
+panel_reduced_beta <- panel_reduced_beta %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(coef_12, by = c("Id", "ym"))
+
+names(panel_reduced_beta) <- c("Id", "ym", "MV.USD", "RET.USD", "alpha", "beta", "coef")
+
+panel_reduced_beta <- panel_reduced_beta %>% 
+  select(Id, ym, MV.USD, RET.USD, beta)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_beta <- panel_reduced_beta[!is.na(beta),c("Id","ym","MV.USD","RET.USD","beta")]
+setorder(panel_reduced_beta,ym,beta)
+panel_reduced_beta <- panel_reduced_beta[, Decile := ntile(beta, 10), by = ym]
+panel_reduced_beta <- panel_reduced_beta[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_beta <- panel_reduced_beta %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_beta = `1`-`10`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_beta <- as.data.table(portfolio_returns_beta)
+portfolio_returns_beta[,t.test(Ret_beta)]
+```
+
+```{r}
+```
+###Sigma
+####1-Year
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sd <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sd[,.N,by=Id]
+panel_reduced_sd <- panel_reduced_sd[count_table[N>12]$Id]
+
+panel_reduced_sd <- panel_reduced_sd %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(resid_12, by = c("Id", "ym"))
+
+panel_reduced_sd <- panel_reduced_sd %>% 
+  select(Id, ym, MV.USD, RET.USD, resid.12)
+
+names(panel_reduced_sd) <- c("Id", "ym", "MV.USD", "RET.USD", "resid_12")
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_sd <- panel_reduced_sd[!is.na(resid_12),c("Id","ym","MV.USD","RET.USD","resid_12")]
+setorder(panel_reduced_sd,ym,resid_12)
+panel_reduced_sd <- panel_reduced_sd[, Decile := ntile(resid_12, 10), by = ym]
+panel_reduced_sd <- panel_reduced_sd[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_sd <- panel_reduced_sd %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_sd = `1`-`10`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_sd <- as.data.table(portfolio_returns_sd)
+portfolio_returns_sd[,t.test(Ret_sd)]
+```
+
+###Monthly Standard Deviation
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_msd <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_msd[,.N,by=Id]
+panel_reduced_msd <- panel_reduced_msd[count_table[N>12]$Id]
+
+panel_reduced_msd <- panel_reduced_msd %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(roll.sd.data, by = c("Id", "ym", "MV.USD"))
+
+panel_reduced_msd <- panel_reduced_msd %>% 
+  select(Id, ym, MV.USD, RET.USD, SD.RET.USD)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_msd <- panel_reduced_msd[!is.na(SD.RET.USD),c("Id","ym","MV.USD","RET.USD","SD.RET.USD")]
+setorder(panel_reduced_msd,ym,SD.RET.USD)
+panel_reduced_msd <- panel_reduced_msd[, Decile := ntile(SD.RET.USD, 10), by = ym]
+panel_reduced_msd <- panel_reduced_msd[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the past winners (stocks in the 10th decile), short the past losers(stocks in the 1st decile), and get the momentum return
+portfolio_returns_msd <- panel_reduced_msd %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(Ret_msd = `1`-`10`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_msd <- as.data.table(portfolio_returns_msd)
+portfolio_returns_msd[,t.test(Ret_msd)]
+```
+
+
+
+##Factor data
+```{r}
+names(coef_12) <-  c("Id", "ym", "RET.USD", "alpha_12", "beta_12", "coef_12")
+
+names(coef_36) <-  c("Id", "ym", "RET.USD", "alpha_36", "beta_36", "coef_36")
+
+names(coef_60) <-  c("Id", "ym", "RET.USD", "alpha_60", "beta_60", "coef_60")
+
+resid_12_r <- resid_12 %>% 
+  select(Id, ym, RET.USD, resid.12)
+
+resid_36_r <- resid_36 %>% 
+  select(Id, ym, RET.USD, resid.36)
+
+resid_60_r <- resid_60 %>% 
+  select(Id, ym, RET.USD, resid.60)
+
+Factor_data <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM) %>% 
+  full_join(panel_reduced_SMB, by = c("Id", "ym")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2) %>% 
+  full_join(panel_reduced_rsi, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI) %>%
+  full_join(coef_12, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12) %>% full_join(coef_36, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36) %>% 
+  full_join(coef_60, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60) %>% 
+  full_join(panel_reduced_yield ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY) %>% 
+  full_join(panel_reduced_prof ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE) %>% 
+  full_join(panel_reduced_inv ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset) %>% 
+  full_join(panel_reduced_eps ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS) %>% 
+  full_join(panel_reduced_sps ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS) %>% 
+  full_join(resid_12_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12) %>% 
+  full_join(resid_36_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36) %>% 
+  full_join(resid_60_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60) %>% 
+  full_join(roll.sd.data ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60, SD.RET.USD)
+  
+write.csv(Factor_data, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data.csv")
+
+save(Factor_data, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data.RData")
+  
+```
+
+##NAs check
+```{r}
+firm_num <- panel_country %>% 
+  group_by(ym) %>% 
+  summarise(n = length(Id))
+```
+
