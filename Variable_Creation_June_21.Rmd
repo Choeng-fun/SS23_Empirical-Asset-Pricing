@@ -17,6 +17,7 @@ library(tidyverse)
 library(rollRegres)
 library(roll)
 library(zoo)
+library(math)
 ```
 
 ```{r}
@@ -150,7 +151,6 @@ panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
 #WC05001 Market Price, WC05202 Earnings per Share - Fiscal Year End
 #WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
 
-
 panel_reduced_val <- panel_reduced_val[,`B/M` := WC05476/WC05001]
 panel_reduced_val <- panel_reduced_val[,`E/P` := WC05202/WC05001]
 panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
@@ -161,7 +161,6 @@ panel_reduced_val <- panel_reduced_val %>%
 ```
 
 ####E/P
-
 ####EBITDA/EV
 
 
@@ -173,21 +172,55 @@ panel_reduced_val <- panel_reduced_val %>%
 panel_reduced_lnMV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
-count_table <- panel_reduced_SMB[,.N,by=Id]
-panel_reduced_SMB <- panel_reduced_SMB[count_table[N>12]$Id]
+count_table <- panel_reduced_lnMV[,.N,by=Id]
+panel_reduced_lnMV <- panel_reduced_lnMV[count_table[N>12]$Id]
 
 #WC05001 Market Price, WC05476 Book Value per Share
+panel_reduced_lnMV <- panel_reduced_lnMV[, Log_MV := log(MV.USD)]
 
-
-panel_reduced_SMB <- panel_reduced_SMB[, Log_MV := WC05476/WC05001]
-
-panel_reduced_val <- panel_reduced_val %>% 
-  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+panel_reduced_lnMV <- panel_reduced_lnMV %>% 
+  select(Id, ym, MV.USD, RET.USD, Log_MV)
 ```
+
 
 ###Momentum
 ####RSI
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_rsi <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_rsi[,.N,by=Id]
+panel_reduced_rsi <- panel_reduced_rsi[count_table[N>12]$Id]
+
+
+panel_reduced_rsi[, gain := ifelse(RET.USD>0, RET.USD, 0)]
+panel_reduced_rsi[, loss := ifelse(RET.USD<0, -RET.USD, 0)]
+
+panel_reduced_rsi[, average_gain := frollmean(gain, 12, align = "right"), by = Id]
+panel_reduced_rsi[, average_loss := frollmean(loss, 12, align = "right"), by = Id]
+panel_reduced_rsi[, RS := average_gain/average_loss]
+panel_reduced_rsi[, RSI := 100 - (100/(1+RS))]
+```
+
 ####Alpha_1
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_alpha <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_alpha[,.N,by=Id]
+panel_reduced_alpha <- panel_reduced_alpha[count_table[N>12]$Id]
+
+panel_reduced_alpha <- panel_reduced_alpha %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(coef_12, by = c("Id", "ym"))
+
+names(panel_reduced_alpha) <- c("Id", "ym", "MV.USD", "RET.USD", "alpha", "beta", "coef")
+
+panel_reduced_alpha <- panel_reduced_alpha %>%
+  select(Id, ym, MV.USD, RET.USD, alpha)
+```
 ####Alpha_3
 ####Alpha_5
 ####Momentum_12_2
@@ -304,8 +337,10 @@ Factor_data_ff5 <- coef_36 %>%
 
 names(Factor_data_ff5) <- c("Id", "ym", "RET.USD", "Beta_3", "MV", "`B/M`", "ROE", "AG", "Mom_12_2")
 ```
-  
-  
+
+```{r}
+save(Factor_data_ff5, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data_FF5.RData")
+```  
   
   
 ##Factor data

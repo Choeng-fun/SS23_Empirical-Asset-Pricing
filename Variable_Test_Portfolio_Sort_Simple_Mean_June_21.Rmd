@@ -152,8 +152,6 @@ panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
 panel_reduced_val <- panel_reduced_val %>% 
   select(Id, ym, MV.USD, RET.USD, BTM)
 
-""``
-
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_val <- panel_reduced_val[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","BTM")]
 setorder(panel_reduced_val,ym,BTM) 
@@ -215,6 +213,7 @@ panel_reduced_momentum <- panel_reduced_momentum[count_table[N>12]$Id]
 create_lag <- function(x, n) c(rep(NA, n), head(x, -n))
 
 # Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_momentum[, Before2 := create_lag(RET.USD, 2), by = Id]
 panel_reduced_momentum[, Before3 := create_lag(RET.USD, 3), by = Id]
 panel_reduced_momentum[, Before4 := create_lag(RET.USD, 4), by = Id]
 panel_reduced_momentum[, Before5 := create_lag(RET.USD, 5), by = Id]
@@ -227,7 +226,7 @@ panel_reduced_momentum[, Before11 := create_lag(RET.USD, 11), by = Id]
 panel_reduced_momentum[, Before12 := create_lag(RET.USD, 12), by = Id]
 
 # Momentum_12_2: Past performance of stocks: use geometric mean to calculate the compound return of a stock over the past twelve months, but ignores the previous month
-panel_reduced_momentum <- panel_reduced_momentum[,Momentum_12_2:=((100+Before3)*(100+Before4)*(100+Before5)*(100+Before6)*(100+Before7)*(100+Before8)*(100+Before9)*(100+Before10)*(100+Before11)*(100+Before12))^(1/10)-100]
+panel_reduced_momentum <- panel_reduced_momentum[,Momentum_12_2:=((100+Before2)*(100+Before3)*(100+Before4)*(100+Before5)*(100+Before6)*(100+Before7)*(100+Before8)*(100+Before9)*(100+Before10)*(100+Before11)*(100+Before12))^(1/10)-100]
 
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_momentum <- panel_reduced_momentum[!is.na(Momentum_12_2),c("Id","ym","MV.USD","RET.USD","Momentum_12_2")]
