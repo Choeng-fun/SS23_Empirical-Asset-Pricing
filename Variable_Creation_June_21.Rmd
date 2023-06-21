@@ -9,3 +9,239 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+##Library Import
+```{r}
+library(data.table)
+library(tidyr)
+library(tidyverse)
+library(rollRegres)
+library(roll)
+library(zoo)
+library(ggplot230)
+```
+
+```{r}
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_May28.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
+panel_country <- as.data.table(panel_country)
+```
+
+##Create regression data
+###Coefficients
+```{r}
+#merging panel_country with DTB6_monthly(risk free rate) 
+panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+```
+
+```{r}
+panel_reduced[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+panel_reduced[, RE.USD:=RET.USD-DTB6]
+panel_reduced[, REM.USD:=MRET.USD-DTB6]
+panel_reduced <- setorderv(panel_reduced, c("ym"))
+```
+
+```{r}
+coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
+```
+
+#### 1-Year
+
+```{r}
+coef_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(12, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+####3-Year
+```{r}
+coef_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(36, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+#### 5-Year
+
+```{r}
+coef_60 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., RE.USD, REM.USD) %>%
+             rollapplyr(60, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+###Sigma
+
+```{r}
+resid.fun <- . %>% as.data.frame %>% lm %>% .$residuals
+```
+
+#### 1-Year
+
+```{r}
+resid_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(12, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+#### 3-Year
+
+```{r}
+resid_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(36, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+
+#### 5-Year
+
+```{r}
+resid_60 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., RE.USD, REM.USD) %>%
+             rollapplyr(60, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+###Monthly Standard Deviation
+```{r}
+roll.sd.data <- panel_reduced %>%
+  group_by(Id)%>%
+  mutate(SD.RET.USD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
+  ungroup
+```
+
+
+##Factors
+###Value
+####B/M
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_val[,.N,by=Id]
+panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
+
+#WC05001 Market Price, WC05476 Book Value per Share
+panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM)
+```
+
+####P/E
+
+####EV/CFO
+
+###Size
+####Log_MV
+
+###Momentum
+####RSI
+####Alpha_1
+####Alpha_3
+####Alpha_5
+####Momentum_12_2
+###Yield
+####DY
+###Quality
+####ROE
+####ROA
+
+###Low Volatility
+####Beta_1
+####Beta_3
+####Beta_5
+####Sigma_1
+####Sigma_3
+####Sigma_5
+####SD
+
+###liqidity
+####T/O
+###Growth
+####EPS
+####SPS
+
+###Others
+####MV
+####AG
+
+##Factor data
+```{r}
+names(coef_12) <-  c("Id", "ym", "RET.USD", "alpha_12", "beta_12", "coef_12")
+
+names(coef_36) <-  c("Id", "ym", "RET.USD", "alpha_36", "beta_36", "coef_36")
+
+names(coef_60) <-  c("Id", "ym", "RET.USD", "alpha_60", "beta_60", "coef_60")
+
+resid_12_r <- resid_12 %>% 
+  select(Id, ym, RET.USD, resid.12)
+
+resid_36_r <- resid_36 %>% 
+  select(Id, ym, RET.USD, resid.36)
+
+resid_60_r <- resid_60 %>% 
+  select(Id, ym, RET.USD, resid.60)
+
+Factor_data <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM) %>% 
+  full_join(panel_reduced_SMB, by = c("Id", "ym")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2) %>% 
+  full_join(panel_reduced_rsi, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI) %>%
+  full_join(coef_12, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12) %>% full_join(coef_36, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36) %>% 
+  full_join(coef_60, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60) %>% 
+  full_join(panel_reduced_yield ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY) %>% 
+  full_join(panel_reduced_prof ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE) %>% 
+  full_join(panel_reduced_inv ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset) %>% 
+  full_join(panel_reduced_eps ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS) %>% 
+  full_join(panel_reduced_sps ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS) %>% 
+  full_join(resid_12_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12) %>% 
+  full_join(resid_36_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36) %>% 
+  full_join(resid_60_r, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60) %>% 
+  full_join(roll.sd.data ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60, SD.RET.USD)
+  
+write.csv(Factor_data, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data.csv")
+
+save(Factor_data, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data.RData")
+  
+```
