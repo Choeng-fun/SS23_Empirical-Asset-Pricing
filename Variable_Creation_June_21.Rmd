@@ -490,6 +490,7 @@ panel_reduced_sigma_5 <- panel_reduced_sigma_5 %>%
 
 ####SD
 ```{r}
+#Monthly standard deviation
 panel_reduced_sd <- panel_reduced %>%
   group_by(Id)%>%
   mutate(SD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
@@ -530,9 +531,12 @@ panel_reduced_eps <- panel_reduced_eps %>%
   mutate(Lagged_EPS = shift(WC05202, n = 12)) %>%
   mutate(Growth_Rate_EPS = (WC05202 - Lagged_EPS) / Lagged_EPS *100)
 
-panel_reduced_eps <- panel_reduced_eps %>% 
-  select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+#panel_reduced_eps <- panel_reduced_eps %>% 
+ # select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+
+names(panel_reduced_eps) <- 
 ```
+
 ####SPS
 ```{r}
 # Select only necessary variables from the comprehensive data set
