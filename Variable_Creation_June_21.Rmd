@@ -501,19 +501,30 @@ panel_reduced_sd <- panel_reduced %>%
 ###liquidity
 ####T/O
 ```{r}
+#Check the number of outstanding data
+trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- trad[,.N,by=Id]
+trad <- trad[count_table[N>12]$Id]
+```
+
+```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08301")]
+panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
 count_table <- panel_reduced_TO[,.N,by=Id]
 panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
 
-#WC08301 Return on Equity -- Total (%)
-panel_reduced_TO <- panel_reduced_TO[,`T/O`:=WC08301] 
+#WC05651 Common Shares Traded - Annual #WC05301 Common Shares Outstanding
+panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
+panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
+panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
 
-panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
-
+panel_reduced_TO <- panel_reduced_TO %>% select(Id, ym, MV.USD, RET.USD, `T/O`)
 ```
 
 ###Growth
@@ -531,10 +542,10 @@ panel_reduced_eps <- panel_reduced_eps %>%
   mutate(Lagged_EPS = shift(WC05202, n = 12)) %>%
   mutate(Growth_Rate_EPS = (WC05202 - Lagged_EPS) / Lagged_EPS *100)
 
-#panel_reduced_eps <- panel_reduced_eps %>% 
- # select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+panel_reduced_eps <- panel_reduced_eps %>% 
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
 
-names(panel_reduced_eps) <- 
+names(panel_reduced_eps) <- c("Id","ym","MV.USD","RET.USD", "EPS")
 ```
 
 ####SPS
@@ -553,6 +564,8 @@ panel_reduced_sps <- panel_reduced_sps %>%
 
 panel_reduced_sps <- panel_reduced_sps %>% 
   select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
+
+names(panel_reduced_sps) <- c("Id","ym","MV.USD","RET.USD", "SPS")
 ```
 
 ###Others
@@ -564,6 +577,9 @@ panel_reduced_MV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 count_table <- panel_reduced_MV[,.N,by=Id]
 panel_reduced_MV <- panel_reduced_MV[count_table[N>12]$Id]
+
+panel_reduced_MV <- panel_reduced_MV %>% 
+  mutate(MV = MV.USD)
 ```
 
 ####AG
@@ -624,8 +640,8 @@ Factor_data <- panel_reduced_val %>%
   full_join(panel_reduced_alpha_1, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
   select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1) %>%
   full_join(panel_reduced_alpha_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_2) %>% 
-  full_join(panel_reduced_alpha_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3) %>% 
+  full_join(panel_reduced_alpha_5, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5) %>% 
   full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2) %>% 
@@ -638,19 +654,29 @@ Factor_data <- panel_reduced_val %>%
   full_join(panel_reduced_beta_1 ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1) %>% 
   full_join(panel_reduced_beta_3 ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_3) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3) %>% 
   full_join(panel_reduced_beta_5, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_3, Beta_5) %>% 
-  
-  
-  full_join(resid, by = c("Id", "ym", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36) %>% 
-  full_join(resid_60_r, by = c("Id", "ym", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60) %>% 
-  full_join(roll.sd.data ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, BTM, MV, Momentum_12_2, RSI, alpha_12, beta_12, alpha_36, beta_36, alpha_60, beta_60, DY, ROE, Change_Asset, Growth_Rate_EPS, Growth_Rate_SPS, resid.12, resid.36, resid.60, SD.RET.USD)
-  
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA,Beta_1, Beta_3, Beta_5) %>% 
+  full_join(panel_reduced_sigma_1, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1) %>% 
+  full_join(panel_reduced_sigma_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3) %>% 
+  full_join(panel_reduced_sigma_5, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5) %>%
+  full_join(panel_reduced_sd, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD) %>% 
+  full_join(panel_reduced_TO, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`) %>% 
+  full_join(panel_reduced_eps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS) %>% 
+  full_join(panel_reduced_sps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS, SPS)%>% 
+  full_join(panel_reduced_MV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS, SPS, MV) %>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, RET.USD, `B/M`, `E/P`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS, SPS, MV, AG)
+```
 
+```{r}
 save(Factor_data, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data.RData")
-  
 ```
