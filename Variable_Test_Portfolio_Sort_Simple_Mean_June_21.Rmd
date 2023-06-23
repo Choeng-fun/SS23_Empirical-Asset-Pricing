@@ -128,17 +128,9 @@ resid_60 <- panel_reduced %>%
   ungroup
 ```
 
-###Monthly Standard Deviation
-```{r}
-roll.sd.data <- panel_reduced %>%
-  group_by(Id)%>%
-  mutate(SD.RET.USD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
-  ungroup
-```
-
-
-##Value
-
+##Factors
+###Value
+####B/M
 ```{r}
 # Select only necessary variables from the comprehensive data set
 panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001")]
@@ -174,7 +166,11 @@ portfolio_returns_val <- as.data.table(portfolio_returns_val)
 portfolio_returns_val[,t.test(Ret_val)]
 ```
 
-##Size
+####E/P
+####EBITDA/EV
+
+###Size
+####Log_MV
 ```{r}
 panel_reduced_SMB <- panel_country[!is.na(RET) & !is.na(MV),c("Id","ym","RET","MV")]
 
