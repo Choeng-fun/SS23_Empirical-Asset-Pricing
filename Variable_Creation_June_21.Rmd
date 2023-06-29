@@ -20,13 +20,23 @@ library(zoo)
 ```
 
 ```{r}
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_May28.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_June29.RData")
 load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
 panel_country <- as.data.table(panel_country)
 ```
 
+```{r}
+DTB6_monthly <- 
+```
+
+
 ##Create regression data
 ###Coefficients
+```{r}
+DTB6_monthly[,ym:=NULL]
+DTB6_monthly[,ym:=paste(year,month,sep = ".")]
+```
+
 ```{r}
 #merging panel_country with DTB6_monthly(risk free rate) 
 panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
@@ -129,19 +139,66 @@ resid_60 <- panel_reduced %>%
 ###Value
 ####B/M
 ```{r}
+check <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","MV","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
+```
+
+
+```{r}
+check_copy <- check
+check_copy[,year:=substr(ym,1,4)]
+check_copy[,month:=substr(ym,6,7)]
+
+check_copy[,MV_lag_1:=lag(check_copy$MV,1)]
+check_copy[,MV_lag_2:=lag(check_copy$MV,2)]
+check_copy[,MV_lag_3:=lag(check_copy$MV,3)]
+check_copy[,MV_lag_4:=lag(check_copy$MV,4)]
+check_copy[,MV_lag_5:=lag(check_copy$MV,5)]
+check_copy[,MV_lag_6:=lag(check_copy$MV,6)]
+check_copy[,MV_lag_7:=lag(check_copy$MV,7)]
+check_copy[,MV_lag_8:=lag(check_copy$MV,8)]
+check_copy[,MV_lag_9:=lag(check_copy$MV,9)]
+check_copy[,MV_lag_10:=lag(check_copy$MV,10)]
+check_copy[,MV_lag_11:=lag(check_copy$MV,11)]
+check_copy[,MV_lag_12:=lag(check_copy$MV,12)]
+
+check_copy[,MV_last_dec:=0]
+check_copy[month==1,MV_last_dec:=MV_lag_1]
+check_copy[month==2,MV_last_dec:=MV_lag_2]
+check_copy[month==3,MV_last_dec:=MV_lag_3]
+check_copy[month==4,MV_last_dec:=MV_lag_4]
+check_copy[month==5,MV_last_dec:=MV_lag_5]
+check_copy[month==6,MV_last_dec:=MV_lag_6]
+check_copy[month==7,MV_last_dec:=MV_lag_7]
+check_copy[month==8,MV_last_dec:=MV_lag_8]
+check_copy[month==9,MV_last_dec:=MV_lag_9]
+check_copy[month==10,MV_last_dec:=MV_lag_10]
+check_copy[month==11,MV_last_dec:=MV_lag_11]
+check_copy[month==12,MV_last_dec:=MV_lag_12]
+
+
+
+
+```
+
+
+
+
+```{r}
 # Select only necessary variables from the comprehensive data set
-panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001", "WC05202", "WC18100", "WC18198")]
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 count_table <- panel_reduced_val[,.N,by=Id]
 panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
 
-#WC05001 Market Price, WC05476 Book Value per Share
-#WC05001 Market Price, WC05202 Earnings per Share - Fiscal Year End
+#common equity (Worldscope item WC03501) plus deferred taxes (WC03263) 
+#Earnings are measured before extraordinary items (WC01551)
 #WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
 
-panel_reduced_val <- panel_reduced_val[,`B/M` := WC05476/WC05001]
-panel_reduced_val <- panel_reduced_val[,`E/P` := WC05202/WC05001]
+panel_reduced_val <- panel_reduced_val[,Book_Value := WC03501 + WC03263]
+
+panel_reduced_val <- panel_reduced_val[,`B/M`:= Book_Value/(MV*1000)]
+panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV*1000)]
 panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
 
 panel_reduced_val <- panel_reduced_val %>% 
@@ -151,7 +208,6 @@ panel_reduced_val <- panel_reduced_val %>%
 
 ####E/P
 ####EBITDA/EV
-
 
 
 ###Size
@@ -308,15 +364,17 @@ panel_reduced_yield <- panel_reduced_yield %>%
 ####ROE
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_ROE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08301")]
+panel_reduced_ROE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551", "WC03501", "WC03263")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
 count_table <- panel_reduced_ROE[,.N,by=Id]
 panel_reduced_ROE <- panel_reduced_ROE[count_table[N>12]$Id]
 
-#WC08301 Return on Equity -- Total (%)
-panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC08301] 
+#earnings before extra- ordinary items (WC01551)
+#common equity (WC03501) plus deferred taxes (WC03263)
+panel_reduced_ROE <- panel_reduced_ROE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC01551/Book_Equity] 
 
 panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
 
@@ -325,15 +383,15 @@ panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
 ####ROA
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_ROA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08326")]
+panel_reduced_ROA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551","WC02999")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
 count_table <- panel_reduced_ROA[,.N,by=Id]
 panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
 
-#WC08326 Return on Assets
-panel_reduced_ROA <- panel_reduced_ROA[,ROA:=WC08326] 
+#earnings before extraordinary items (WC01551) divided by total assets (WC02999)
+panel_reduced_ROA <- panel_reduced_ROA[,ROA:=WC01551/WC02999] 
 
 panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
 ```
@@ -341,31 +399,32 @@ panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
 ####GP/A
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_GPA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08326")]
+panel_reduced_GPA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01001","WC01501","WC02999")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
-count_table <- panel_reduced_ROA[,.N,by=Id]
-panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
+count_table <- panel_reduced_GPA[,.N,by=Id]
+panel_reduced_GPA <- panel_reduced_GPA[count_table[N>12]$Id]
 
-#gross profit to asset
-panel_reduced_ROA <- panel_reduced_ROA[,ROE:=WC08326] 
+#gross profits-to-assets is net sales or revenues (WC01001) minus cost of goods sold (WC01501) both divided by total assets (WC02999)
+panel_reduced_GPA <- panel_reduced_GPA[,`GP/A`:=(WC01001-WC01501)/WC02999] 
 
-panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
+panel_reduced_GPA <- panel_reduced_GPA %>% select(Id, ym, MV.USD, RET.USD, `GP/A`)
 ```
 
 ####OP/BE
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_ROA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC08326")]
+panel_reduced_OPBE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC03501","WC03263","WC01001","WC01051","WC01101")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
-count_table <- panel_reduced_ROA[,.N,by=Id]
-panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
+count_table <- panel_reduced_OPBE[,.N,by=Id]
+panel_reduced_OPBE <- panel_reduced_OPBE[count_table[N>12]$Id]
 
-#operating profit-to-book equity
-panel_reduced_ROA <- panel_reduced_ROA[,ROE:=WC08326] 
+#Operating profits-to-book equity. We measure operating profits-to-book equity as in Fama and French (2015) as sales or revenues (WC01001) minus cost of goods sold (WC01051), minus selling, general, and administrative expenses (WC01101), minus interest expense (WC01251); all divided by book equity.
+panel_reduced_OPBE <- panel_reduced_OPBE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101)/Bool_Equity] 
 
 panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
 ```
@@ -608,20 +667,19 @@ panel_reduced_inv <- panel_reduced_inv %>%
 ##Facotr Data FF5
 ```{r}
 ##Factor data for FF5
-names(coef_36) <-  c("Id", "ym", "RET.USD", "alpha_36", "beta_36", "coef_36")
+
+names(coef_36) <- c("Id", "ym", "RET.USD", "Alpha_3", "Beta_3", "Coef_3")
 
 Factor_data_ff5 <- coef_36 %>% 
-  select(Id, ym, beta_36) %>%
-  full_join(panel_reduced_val, by = c("Id", "ym")) %>% 
-  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`) %>% 
+  select(Id, ym, RET.USD, Beta_3)%>%
+  full_join(panel_reduced_val, by = c("Id", "ym","RET.USD"))%>% 
+  select(Id, ym, MV.USD, RET.USD, Beta_3, `B/M`)%>% 
   full_join(panel_reduced_ROE, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`, ROE) %>% 
+  select(Id, ym, MV.USD, RET.USD, Beta_3, `B/M`, ROE) %>% 
   full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
-  select(Id, ym, MV.USD, RET.USD, beta_36, `B/M`, ROE, AG) %>% 
+  select(Id, ym, MV.USD, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
   full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, RET.USD, beta_36, MV.USD, `B/M`, ROE, AG, Momentum_12_2)
-
-names(Factor_data_ff5) <- c("Id", "ym", "RET.USD", "Beta_3", "MV", "`B/M`", "ROE", "AG", "Mom_12_2")
+  select(Id, ym, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
 ```
 
 ```{r}
