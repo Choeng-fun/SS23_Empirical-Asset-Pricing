@@ -9,16 +9,267 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Double Sort
+```{r}
+library(data.table)
+library("tidyverse")
+```
+
+## Data Manipulation
 
 ```{r pressure, echo=FALSE}
 # Load the data
 load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
+Factor_data_ff5 <- as.data.table(Factor_data_ff5)
+Factor_data_ff5[,month:=month(ym)]
+Factor_data_ff5[,year:=year(ym)]
+Factor_data_ff5[,hcjun := ifelse(month>=7,year,year-1)]
+colnames(Factor_data_ff5)[6] <- "BM"
+
+```
+
+## SMB and HML
+```{r}
+# determine size portfolio allocation from July on using data that's public from end-of-June on
+Factor_data_ff5 <- Factor_data_ff5[complete.cases(Factor_data_ff5)]
+
+setorder(Factor_data_ff5,ym,-MV) 
+hlpvariable_size <-  Factor_data_ff5[month==7 & !is.na(MV),
+                                .(pf.size = ifelse((cumsum(MV)/sum(MV))>=0.9,"Small","Big"),Id),
+                                by=year]
+
+# Merge the size portfolio allocation back from July Y to June Y+1
+panel_country <- merge(Factor_data_ff5,hlpvariable_size,
+                       by.x=c("hcjun","Id"),
+                       by.y=c("year","Id"))
 ```
 
 ```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_bm <- panel_country[month==7 & !is.na(BM) & pf.size=="Big", 
+                                .(bm_bb30 = quantile(BM , probs = c(0.3), na.rm=T),
+                                  bm_bb70 = quantile(BM , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_bm,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.bm := ifelse(BM>bm_bb70,"High",ifelse((BM<=bm_bb70 & BM>bm_bb30),"Neutral",ifelse(BM<=bm_bb30,"Low",NA)))]
+
+panel_country[, SIZE_VALUE := paste0(pf.size,".",pf.bm)] 
+
+
+portfolio_returns_HML <- panel_country[!is.na(pf.size) & !is.na(pf.bm)] %>% # this operator nests functions
+  group_by(ym,SIZE_VALUE) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_VALUE,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.High + Small.Neutral + Small.Low)/3, # just exemplary
+    Big = (Big.High + Big.Neutral + Big.Low)/3,
+    SMB = Small-Big,
+    High = (Small.High + Big.High)/2,
+    Low = (Small.Low + Big.Low)/2,
+    HML = High-Low
+  )
+
+portfolio_returns_HML <- as.data.table(portfolio_returns_HML)
+
+portfolio_returns_HML[,t.test(SMB)]
+portfolio_returns_HML[,t.test(HML)]
 
 ```
+
+## SMB and RMW
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_roe <- panel_country[month==7 & !is.na(ROE) & pf.size=="Big", 
+                                .(roe_bb30 = quantile(ROE , probs = c(0.3), na.rm=T),
+                                  roe_bb70 = quantile(ROE , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_roe,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.roe := ifelse(ROE>roe_bb70,"Robust",ifelse((ROE<=roe_bb70 & ROE>roe_bb30),"Neutral",ifelse(ROE<=roe_bb30,"Weak",NA)))]
+
+panel_country[, SIZE_PROFITALIIBITY := paste0(pf.size,".",pf.roe)] 
+
+portfolio_returns_RMW <- panel_country[!is.na(pf.size) & !is.na(pf.roe)] %>%
+  group_by(ym,SIZE_PROFITALIIBITY) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_PROFITALIIBITY,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Robust + Small.Neutral + Small.Weak)/3, # just exemplary
+    Big = (Big.Robust + Big.Neutral + Big.Weak)/3,
+    SMB = Small-Big,
+    Robust = (Small.Robust + Big.Robust)/2,
+    Weak = (Small.Weak + Big.Weak)/2,
+    RMW = Robust-Weak
+  )
+
+portfolio_returns_RMW <- as.data.table(portfolio_returns_RMW)
+
+portfolio_returns_RMW[,t.test(SMB)]
+portfolio_returns_RMW[,t.test(RMW)]
+```
+
+## SMB and CMA
+
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_ag <- panel_country[month==7 & !is.na(AG) & pf.size=="Big", 
+                                .(ag_bb30 = quantile(AG , probs = c(0.3), na.rm=T),
+                                  ag_bb70 = quantile(AG , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_ag,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.ag := ifelse(AG>ag_bb70,"Aggresive",ifelse((AG<=ag_bb70 & AG>ag_bb30),"Neutral",ifelse(AG<=ag_bb30,"Conservative",NA)))]
+
+panel_country[, SIZE_INVESTMENT := paste0(pf.size,".",pf.ag)] 
+
+portfolio_returns_CMA <- panel_country[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_INVESTMENT) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_INVESTMENT,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Conservative + Small.Neutral + Small.Aggresive)/3, # just exemplary
+    Big = (Big.Conservative + Big.Neutral + Big.Aggresive)/3,
+    SMB = Small-Big,
+    Conservative = (Small.Conservative + Big.Conservative)/2,
+    Aggresive = (Small.Aggresive + Big.Aggresive)/2,
+    CMA = Conservative-Aggresive
+  )
+
+portfolio_returns_CMA <- as.data.table(portfolio_returns_CMA)
+
+portfolio_returns_CMA[,t.test(SMB)]
+portfolio_returns_CMA[,t.test(CMA)]
+```
+
+## SMB and WML
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- panel_country[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+panel_country[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- panel_country[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
+    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    SMB = Small-Big,
+    Winner = (Small.Winner + Big.Winner)/2,
+    Loser = (Small.Loser + Big.Loser)/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(SMB)]
+portfolio_returns_WML[,t.test(WML)]
+```
+
+
+## SMB and Momentum
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- panel_country[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+panel_country[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- panel_country[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
+    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    SMB = Small-Big,
+    Winner = (Small.Winner + Big.Winner)/2,
+    Loser = (Small.Loser + Big.Loser)/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(SMB)]
+portfolio_returns_WML[,t.test(WML)]
+
+```
+
+
+## SMB and WML
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- panel_country[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+panel_country <- merge(panel_country,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+panel_country[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+panel_country[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- panel_country[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
+    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    SMB = Small-Big,
+    Winner = (Small.Winner + Big.Winner)/2,
+    Loser = (Small.Loser + Big.Loser)/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(SMB)]
+portfolio_returns_WML[,t.test(WML)]
+```
+
+
 
 
 
