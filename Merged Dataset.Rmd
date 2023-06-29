@@ -1,0 +1,56 @@
+---
+title: "Merged Dataset"
+author: "Yuru Chen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+```
+
+
+```{r}
+load("~/Desktop/Empirical Asset Pricing/project/GBR_DS_monthly.RData")
+load("~/Desktop/Empirical Asset Pricing/project/GBR_DS_static.RData")
+load("~/Desktop/Empirical Asset Pricing/project/GBR_WS_yearly.RData")
+
+DS_monthly <- as.data.table(DS.monthly)
+DS_static <- as.data.table(DS.static)
+WS_yearly <- as.data.table(WS.yearly)
+```
+
+```{r}
+DS_monthly[,month:=month(Date)]
+DS_monthly[,year:=year(Date)]
+DS_monthly[,hcdec:=ifelse(month >= 7, year-1, year-2)]
+
+DS_monthly[, c("country","Date"):=NULL]
+DS_monthly <- DS_monthly[,c(1,19,18,2,20,3:17)]
+```
+
+
+```{r}
+WS_yearly[,c("country","Stock"):=NULL]
+WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
+```
+
+
+```{r}
+panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
+panel_country <- panel_country[,hcdec:=NULL]
+panel_country$ym <- paste(panel_country$year,panel_country$month,sep = ".")
+```
+
+
+
+
+```{r}
+save(panel_country,file="panel_country_June29.RData")
+```
+
+
