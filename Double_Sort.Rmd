@@ -1,0 +1,24 @@
+---
+title: "Double Sort"
+author: "Yuru Chen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Double Sort
+
+```{r pressure, echo=FALSE}
+# Load the data
+load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
+```
+
+```{r}
+
+```
+
+
+
