@@ -144,6 +144,9 @@ resid_60 <- panel_reduced %>%
 ##Factors
 ###Value 
 ####B/M
+####E/P
+####C/P
+####EBITDA/EV
 ```{r}
 check <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","MV","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
 ```
@@ -187,7 +190,7 @@ check_copy[month==12,MV_last_dec:=MV_lag_12]
 
 ```{r}
 # Select only necessary variables from the comprehensive data set
-panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198","WC04860")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 count_table <- panel_reduced_val[,.N,by=Id]
@@ -233,20 +236,18 @@ panel_reduced_val[month==12,MV_last_dec:=MV_lag_12, by = "Id"]
 
 panel_reduced_val <- panel_reduced_val[,`B/M`:= Book_Value/(MV_last_dec*1000)]
 panel_reduced_val <- panel_reduced_val[,`B/Mm`:= Book_Value/(MV*1000)]
-panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV*1000)]
+panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV_last_dec*1000)]
 panel_reduced_val <- panel_reduced_val[,`E/Pm` := WC01551/(MV*1000)]
 panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
 
-panel_reduced_val <- panel_reduced_val[,`C/P` := WC04860/]
+panel_reduced_val <- panel_reduced_val[,`C/P` := WC04860/(MV_last_dec*1000)]
 panel_reduced_val <- panel_reduced_val[,`C/Pm` := WC04860/(MV*1000)]
 
 panel_reduced_val <- panel_reduced_val %>% 
-  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+  select(Id, ym, MV.USD, RET.USD, `B/M`,`B/Mm`,  `E/P`, `E/Pm`, `C/P`, `C/Pm`,  `EBITDA/EV`)
 
 ```
 
-####E/P
-####EBITDA/EV
 
 ###Size 
 ####Log_MV
@@ -461,7 +462,7 @@ panel_reduced_GPA <- panel_reduced_GPA %>% select(Id, ym, MV.USD, RET.USD, `GP/A
 
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_OPBE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC03501","WC03263","WC01001","WC01051","WC01101")]
+panel_reduced_OPBE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC03501","WC03263","WC01001","WC01051","WC01251","WC01101")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
@@ -470,9 +471,72 @@ panel_reduced_OPBE <- panel_reduced_OPBE[count_table[N>12]$Id]
 
 #Operating profits-to-book equity. We measure operating profits-to-book equity as in Fama and French (2015) as sales or revenues (WC01001) minus cost of goods sold (WC01051), minus selling, general, and administrative expenses (WC01101), minus interest expense (WC01251); all divided by book equity.
 panel_reduced_OPBE <- panel_reduced_OPBE[,Book_Equity:=WC03501+WC03263]
-panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101)/Book_Equity] 
+panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101-WC01251)/Book_Equity] 
 
 panel_reduced_OPBE <- panel_reduced_OPBE %>% select(Id, ym, MV.USD, RET.USD, `OP/BE`)
+```
+
+#### NOA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_NOA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999","WC02001","WC03255","WC03426","WC03995")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_NOA[,.N,by=Id]
+panel_reduced_NOA <- panel_reduced_NOA[count_table[N>12]$Id]
+
+#NOA: Net operating assets. As in Hirshleifer et al. (2004), net operating assets in June of year y are defined as operating assets minus operating liabilities for the fiscal year ending in calendar year y − 1; all deflated by total assets (WC02999) for the fiscal year ending in calendar year y − 2. Operating assets is total assets (WC02999) minus cash and short-term investment (WC02001). Operating liabilities is total assets minus short-term and long- term debt (WC03255), minus minority interest (WC03426), minus preferred stock and common equity (WC03995).
+
+panel_reduced_NOA <- panel_reduced_NOA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_TA_2 = shift(WC02999, n = 24)) %>%
+  mutate(Lagged_Cash = shift(WC02001, n = 12)) %>% 
+  mutate(Lagged_SD = shift(WC03255, n = 12)) %>% 
+  mutate(Lagged_Minority = shift(WC03426, n = 12)) %>% 
+  mutate(Lagged_Prefered = shift(WC03995, n = 12)) %>% 
+  mutate(Operating_Asset = Lagged_TA_2 - Lagged_Cash) %>% 
+  mutate(Operating_Liabilit = Lagged_TA_2 - Lagged_SD - Lagged_Minority - Lagged_Prefered) %>% 
+  mutate(NOA = Operating_Asset - Operating_Liabilit) %>% 
+  ungroup
+
+panel_reduced_NOA <- panel_reduced_NOA %>% select(Id, ym, MV.USD, RET.USD, NOA)
+```
+#### OA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_OA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01151","WC02201","WC02001","WC03101","WC03051","WC03063")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_OA[,.N,by=Id]
+panel_reduced_OA <- panel_reduced_OA[count_table[N>12]$Id]
+
+#OA: Operating accruals. Following Sloan (1996), we define operating accruals as the change in operating working capital minus depreciation, depletion, and amortization (WC01151, zero if missing); all deflated by total assets (WC02999). Change in operating working capital is the change in current assets (WC02201) minus change in cash and short- term investments (WC02001), minus change in current liabilities (WC03101), plus change in debt in current liabilities (WC03051), plus change in income taxes payable (WC03063, zero if missing). Operating accruals in June of year y are measured from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1.
+
+panel_reduced_OA <- panel_reduced_OA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_Current_Asset_2 = shift(WC02201, n = 24)) %>%
+  mutate(Lagged_Current_Asset = shift(WC02201, n = 12)) %>% 
+  mutate(Change_Current_Asset = Lagged_Current_Asset - Lagged_Current_Asset_2) %>% 
+  mutate(Lagged_Cash_Short_2 = shift(WC02001, n = 24)) %>%
+  mutate(Lagged_Cash_Short = shift(WC02001, n = 12)) %>% 
+  mutate(Change_Cash_Short = Lagged_Cash_Short - Lagged_Cash_Short_2) %>% 
+  mutate(Lagged_Current_Liability_2 = shift(WC03101, n = 24)) %>%
+  mutate(Lagged_Current_Liability = shift(WC03101, n = 12)) %>%
+  mutate(Change_Current_Liability = Lagged_Current_Liability - Lagged_Current_Liability_2)%>% 
+  mutate(Lagged_Debt_in_2 = shift(WC03051, n = 24)) %>%
+  mutate(Lagged_Debt_in = shift(WC03051, n = 12)) %>%
+  mutate(Change_Debt_in = Lagged_Debt_in - Lagged_Debt_in_2) %>%
+  mutate(Lagged_Income_Tax_2 = shift(WC03063, n = 24)) %>%
+  mutate(Lagged_Income_Tax = shift(WC03063, n = 12)) %>%
+  mutate(Change_Income_Tax = Lagged_Income_Tax - Lagged_Income_Tax_2)%>%
+  mutate(Lagged_Dep = shift(WC01151, n = 12))%>% 
+  mutate(Change_in_Ope_Wor_Cap = Change_Current_Asset - Change_Cash_Short - Change_Current_Liability + Change_Debt_in + Change_Income_Tax) %>% 
+  mutate(OA = Change_in_Ope_Wor_Cap - Lagged_Dep) %>% 
+  ungroup
+
+panel_reduced_OA <- panel_reduced_OA %>% select(Id, ym, MV.USD, RET.USD, OA)
 ```
 
 ###Low Volatility
@@ -723,8 +787,75 @@ panel_reduced_inv <- panel_reduced_inv %>%
   select(Id, ym, MV.USD, RET.USD, AG)
 ```
 
-####I/A
+####NSI
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_NSI<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "NOSH", "AF")]
 
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_NSI[,.N,by=Id]
+panel_reduced_NSI <- panel_reduced_NSI[count_table[N>12]$Id]
+
+#NSI: Net stock issues. Following Pontiff and Woodgate (2008), we measure net stock issues as the difference in the natural logs of split-adjusted shares outstanding in June of year y and year y − 1. Split-adjusted shares outstanding are calculated as shares outstanding (Datastream item NOSH) divided by the adjustment factor (Datastream item AF). We update this variable each June to make it comparable to the yearly updated asset growth variable.
+
+panel_reduced_NSI[,Sprit_Share := NOSH/AF]
+panel_reduced_NSI[,Lagged_Sprit_Share := shift(Sprit_Share, n = 12), by = "Id"]
+panel_reduced_NSI[, NSI_m := log(Sprit_Share/Lagged_Sprit_Share)]
+
+panel_reduced_NSI[,year:=substr(ym,1,4)]
+panel_reduced_NSI[,month:=substr(ym,6,7)]
+
+panel_reduced_NSI[,lag_5 := shift(NSI_m,-1), by = "Id"]
+panel_reduced_NSI[,lag_4:=shift(NSI_m,-2), by = "Id"]
+panel_reduced_NSI[,lag_3:=shift(NSI_m,-3), by = "Id"]
+panel_reduced_NSI[,lag_2:=shift(NSI_m,-4), by = "Id"]
+panel_reduced_NSI[,lag_1:=shift(NSI_m,-5), by = "Id"]
+panel_reduced_NSI[,lag_12:=shift(NSI_m,-6), by = "Id"]
+panel_reduced_NSI[,lag_11:=shift(NSI_m,-7), by = "Id"]
+panel_reduced_NSI[,lag_10:=shift(NSI_m,-8), by = "Id"]
+panel_reduced_NSI[,lag_9:=shift(NSI_m,-9), by = "Id"]
+panel_reduced_NSI[,lag_8:=shift(NSI_m,-10), by = "Id"]
+panel_reduced_NSI[,lag_7:=shift(NSI_m,-11), by = "Id"]
+
+panel_reduced_NSI[,NSI:=0]
+panel_reduced_NSI[month==6, NSI:=NSI_m, by = "Id"]
+panel_reduced_NSI[month==5, NSI:=lag_5, by = "Id"]
+panel_reduced_NSI[month==4, NSI:=lag_4, by = "Id"]
+panel_reduced_NSI[month==3, NSI:=lag_3, by = "Id"]
+panel_reduced_NSI[month==2, NSI:=lag_2, by = "Id"]
+panel_reduced_NSI[month==1, NSI:=lag_1, by = "Id"]
+panel_reduced_NSI[month==12, NSI:=lag_12, by = "Id"]
+panel_reduced_NSI[month==11, NSI:=lag_11, by = "Id"]
+panel_reduced_NSI[month==10, NSI:=lag_10, by = "Id"]
+panel_reduced_NSI[month==9, NSI:=lag_9, by = "Id"]
+panel_reduced_NSI[month==8, NSI:=lag_8, by = "Id"]
+panel_reduced_NSI[month==7, NSI:=lag_7, by = "Id"]
+
+panel_reduced_NSI <- panel_reduced_NSI %>% 
+  select(Id, ym, MV.USD, RET.USD, `NSI`)
+```
+
+
+####CEI
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_CEI<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_CEI[,.N,by=Id]
+panel_reduced_CEI <- panel_reduced_CEI[count_table[N>12]$Id]
+
+#Investment-to-assets. As in Lyandres et al. (2008), we measure investment-to-assets in June of year y as the change in gross property, plant, and equipment (WC02301) plus the annual change in inventories (WC02101) (both from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1) all divided by total assets (WC02999) of year y − 2.
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  group_by(Id) %>% 
+
+
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  select(Id, ym, MV.USD, RET.USD, `CEI`)
+```
+
+
+####I/A
 ```{r}
 # Select only necessary variables from the comprehensive data set
 panel_reduced_IA<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02301","WC02101","WC02999")]
@@ -748,7 +879,6 @@ panel_reduced_inv <- panel_reduced_inv %>%
   select(Id, ym, MV.USD, RET.USD, `I/A`)
 ```
 
-####NSI
 
 ##Facotr Data FF5
 ```{r}
