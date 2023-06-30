@@ -42,10 +42,7 @@ WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
 
 ```{r}
 panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
-panel_country[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
-panel_country[month %in% 10:12, month_new:=month] 
-panel_country$ym <- paste(panel_country$year,panel_country$month_new,sep = ".")
-panel_country[,month_new:=NULL]
+
 ```
 
 

@@ -1,0 +1,58 @@
+---
+title: "Comprehensive_Code"
+author: "Yuru Chen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## 0. Library
+
+```{r}
+library(data.table)
+```
+
+
+## 1. Merge the Three Original Dataset into One
+
+```{r}
+# Load the 3 original dataset
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
+```
+
+```{r}
+DS_monthly <- as.data.table(DS.monthly)
+WS_yearly <- as.data.table(WS.yearly)
+
+DS_monthly[,month:=month(Date)]
+DS_monthly[,year:=year(Date)]
+DS_monthly[,hcdec:=ifelse(month >= 7, year-1, year-2)]
+DS_monthly[, c("country","Date"):=NULL]
+DS_monthly <- DS_monthly[,c(1,19,18,2,20,3:17)]
+
+WS_yearly[,c("country","Stock"):=NULL]
+WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
+
+panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
+```
+
+```{r}
+# save(panel_country,file="panel_country_June30.RData")
+```
+
+## 2. Variable Creation
+
+```{r}
+
+```
+
+
+
+
+

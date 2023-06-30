@@ -20,7 +20,7 @@ library("tidyverse")
 # Load the data
 load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_ff5_Double.RData")
 
-Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(Factor_data_ff5_Double$`B/M`)]
+Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(`B/M`)]
 
 
 
