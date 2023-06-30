@@ -18,7 +18,7 @@ library("tidyverse")
 
 ```{r pressure, echo=FALSE}
 # Load the data
-#load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
+load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
 Factor_data_ff5 <- as.data.table(Factor_data_ff5)
 Factor_data_ff5[,month:=as.numeric(substr(ym,6,7))]
 Factor_data_ff5[,year:=as.numeric(substr(ym,1,4))]
@@ -228,4 +228,8 @@ All_factor <- merge(SMB_reduced,HML_reduced,by="ym") %>%
   merge(.,RMRF, by="ym")
 
 ```
+
+
+
+
 
