@@ -18,12 +18,12 @@ library("tidyverse")
 
 ```{r pressure, echo=FALSE}
 # Load the data
-load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
+#load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
 Factor_data_ff5 <- as.data.table(Factor_data_ff5)
 Factor_data_ff5[,month:=as.numeric(substr(ym,6,7))]
 Factor_data_ff5[,year:=as.numeric(substr(ym,1,4))]
 Factor_data_ff5[,hcjun := ifelse(month>=7,year,year-1)]
-colnames(Factor_data_ff5)[6] <- "BM"
+colnames(Factor_data_ff5)[7] <- "BM"
 
 ```
 
@@ -196,12 +196,36 @@ portfolio_returns_SMB <- data.table(ym=portfolio_returns_HML$ym,
                                     SMB_cma= portfolio_returns_CMA$SMB,
                                     SMB_wml= portfolio_returns_WML$SMB)
 
-portfolio_returns_SMB <- portfolio_returns_SMB[,SMB_average:=
+portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=
                                                  (SMB_hml+SMB_rmw+SMB_cma+SMB_wml)/4]
 
-portfolio_returns_SMB[,t.test(SMB_average)]
+portfolio_returns_SMB[,t.test(SMB)]
 ```
 
-In conclusion, significant variables include SMB, HML, CMA, and WML
+In conclusion, significant variables include SMB, HML, and WML
 
+## RMRF
+
+```{r}
+RMRF <- unique(Factor_data_ff5[,.(ym,REM.USD)])
+colnames(RMRF)[2] <- "RMRF"
+```
+
+
+## All Factors
+
+```{r}
+SMB_reduced <- portfolio_returns_SMB[,.(ym, SMB)]
+HML_reduced <- portfolio_returns_HML[,.(ym, HML)]
+RMW_reduced <- portfolio_returns_RMW[,.(ym, RMW)]
+CMA_reduced <- portfolio_returns_CMA[,.(ym, CMA)]
+WML_reduced <- portfolio_returns_WML[,.(ym, WML)]
+
+All_factor <- merge(SMB_reduced,HML_reduced,by="ym") %>% 
+  merge(.,RMW_reduced, by="ym") %>% 
+  merge(.,CMA_reduced, by="ym") %>% 
+  merge(.,WML_reduced, by="ym") %>% 
+  merge(.,RMRF, by="ym")
+
+```
 
