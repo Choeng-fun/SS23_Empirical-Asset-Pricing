@@ -18,27 +18,40 @@ library("tidyverse")
 
 ```{r pressure, echo=FALSE}
 # Load the data
-load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_FF5.RData")
-Factor_data_ff5 <- as.data.table(Factor_data_ff5)
-Factor_data_ff5[,month:=as.numeric(substr(ym,6,7))]
-Factor_data_ff5[,year:=as.numeric(substr(ym,1,4))]
-Factor_data_ff5[,hcjun := ifelse(month>=7,year,year-1)]
-colnames(Factor_data_ff5)[7] <- "BM"
+load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_ff5_Double.RData")
 
+Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(Factor_data_ff5_Double$`B/M`)]
+
+
+
+Factor_data_ff5_Double <- as.data.table(Factor_data_ff5_Double)
+Factor_data_ff5_Double[,month:=as.numeric(substr(ym,6,7))]
+Factor_data_ff5_Double[,year:=as.numeric(substr(ym,1,4))]
+Factor_data_ff5_Double[,hcjun := ifelse(month>=7,year,year-1)]
+colnames(Factor_data_ff5_Double)[6] <- "BM"
+
+Factor_data_ff5_Double[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
+Factor_data_ff5_Double[month %in% 10:12, month_new:=month] 
+Factor_data_ff5_Double$ym <- paste(Factor_data_ff5_Double$year,Factor_data_ff5_Double$month_new,sep = ".")
+Factor_data_ff5_Double[,month_new:=NULL]
+Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(Factor_data_ff5_Double$MV)]
+
+setorder(Factor_data_ff5_Double,ym,-MV) 
 ```
 
 ## SMB and HML
 ```{r}
 # determine size portfolio allocation from July on using data that's public from end-of-June on
-Factor_data_ff5 <- Factor_data_ff5[complete.cases(Factor_data_ff5)]
 
-setorder(Factor_data_ff5,ym,-MV.USD) 
-hlpvariable_size <-  Factor_data_ff5[month==7 & !is.na(MV.USD),
-                                .(pf.size = ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),Id),
+
+# Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(Factor_data_ff5_Double)]
+
+hlpvariable_size <-  Factor_data_ff5_Double[month==7 & !is.na(MV),
+                                .(pf.size = ifelse((cumsum(MV)/sum(MV))>=0.9,"Small","Big"),Id),
                                 by=year]
 
 # Merge the size portfolio allocation back from July Y to June Y+1
-panel_country <- merge(Factor_data_ff5,hlpvariable_size,
+panel_country <- merge(Factor_data_ff5_Double,hlpvariable_size,
                        by.x=c("hcjun","Id"),
                        by.y=c("year","Id"))
 ```
@@ -62,7 +75,7 @@ panel_country[, SIZE_VALUE := paste0(pf.size,".",pf.bm)]
 portfolio_returns_HML <- panel_country[!is.na(pf.size) & !is.na(pf.bm)] %>% # this operator nests functions
   group_by(ym,SIZE_VALUE) %>% # do "everything" for the groups specified here
   summarize(ret.port = weighted.mean(RET.USD,
-                                     MV.USD)) %>% # vw returns using lagged mcap
+                                     MV)) %>% # vw returns using lagged mcap
   spread(SIZE_VALUE,ret.port) %>% # create one column for each group
   mutate(
     Small = (Small.High + Small.Neutral + Small.Low)/3, # just exemplary
