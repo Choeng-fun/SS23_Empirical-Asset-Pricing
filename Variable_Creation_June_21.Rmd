@@ -838,7 +838,7 @@ panel_reduced_NSI <- panel_reduced_NSI %>%
 ####CEI
 ```{r}
 # Select only necessary variables from the comprehensive data set
-panel_reduced_CEI<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+panel_reduced_CEI<- panel_country[!is.na(RET.USD),c("Id","ym","year","month","MV.USD","RET.USD")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 count_table <- panel_reduced_CEI[,.N,by=Id]
@@ -872,39 +872,41 @@ panel_reduced_CEI <- panel_reduced_CEI %>%
   mutate(Before11 := shift(Log_RET, n = 11)) %>% 
   mutate(Before12 := shift(Log_RET, n = 12)) %>% 
   mutate(Cum_Log_RET = Before1 +Before2 + Before3 + Before4 + Before5 +Before6 + Before7 +Before8 +Before9 + Before10 +Before11 +Before12) %>% 
-  mutate(CEI = Log_MC - Cum_Log_RET) %>% 
+  mutate(CEI_m = Log_MC - Cum_Log_RET) %>% 
   ungroup
   
 
 
-panel_reduced_CEI[, year:=substr(ym,1,4)]
-panel_reduced_CEI[, month:=substr(ym,6,7)]
+#panel_reduced_CEI[, year := substr(ym,1,4)]
+#panel_reduced_CEI[, month := substr(ym,6,7)]
 
-panel_reduced_CEI[,lag_5 := shift(CEI,-1), by = "Id"]
-panel_reduced_CEI[,lag_4:=shift(CEI,-2), by = "Id"]
-panel_reduced_CEI[,lag_3:=shift(CEI,-3), by = "Id"]
-panel_reduced_CEI[,lag_2:=shift(CEI,-4), by = "Id"]
-panel_reduced_CEI[,lag_1:=shift(CEI,-5), by = "Id"]
-panel_reduced_CEI[,lag_12:=shift(CEI,-6), by = "Id"]
-panel_reduced_CEI[,lag_11:=shift(CEI,-7), by = "Id"]
-panel_reduced_CEI[,lag_10:=shift(CEI,-8), by = "Id"]
-panel_reduced_CEI[,lag_9:=shift(CEI,-9), by = "Id"]
-panel_reduced_CEI[,lag_8:=shift(CEI,-10), by = "Id"]
-panel_reduced_CEI[,lag_7:=shift(CEI,-11), by = "Id"]
+panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
+
+panel_reduced_CEI[,lag_5 := shift(CEI_m,-1), by = "Id"]
+panel_reduced_CEI[,lag_4:=shift(CEI_m,-2), by = "Id"]
+panel_reduced_CEI[,lag_3:=shift(CEI_m,-3), by = "Id"]
+panel_reduced_CEI[,lag_2:=shift(CEI_m,-4), by = "Id"]
+panel_reduced_CEI[,lag_1:=shift(CEI_m,-5), by = "Id"]
+panel_reduced_CEI[,lag_12:=shift(CEI_m,-6), by = "Id"]
+panel_reduced_CEI[,lag_11:=shift(CEI_m,-7), by = "Id"]
+panel_reduced_CEI[,lag_10:=shift(CEI_m,-8), by = "Id"]
+panel_reduced_CEI[,lag_9:=shift(CEI_m,-9), by = "Id"]
+panel_reduced_CEI[,lag_8:=shift(CEI_m,-10), by = "Id"]
+panel_reduced_CEI[,lag_7:=shift(CEI_m,-11), by = "Id"]
 
 panel_reduced_CEI[,CEI:=0]
-panel_reduced_CEI[month==6, CEI:=CEI, by = "Id"]
+panel_reduced_CEI[month==6, CEI:=CEI_m, by = "Id"]
 panel_reduced_CEI[month==5, CEI:=lag_5, by = "Id"]
-panel_reduced_CEI[month==4, NSI:=lag_4, by = "Id"]
-panel_reduced_CEI[month==3, NSI:=lag_3, by = "Id"]
-panel_reduced_CEI[month==2, NSI:=lag_2, by = "Id"]
-panel_reduced_CEI[month==1, NSI:=lag_1, by = "Id"]
-panel_reduced_CEI[month==12, NSI:=lag_12, by = "Id"]
-panel_reduced_CEI[month==11, NSI:=lag_11, by = "Id"]
-panel_reduced_CEI[month==10, NSI:=lag_10, by = "Id"]
-panel_reduced_CEI[month==9, NSI:=lag_9, by = "Id"]
-panel_reduced_CEI[month==8, NSI:=lag_8, by = "Id"]
-panel_reduced_CEI[month==7, NSI:=lag_7, by = "Id"]
+panel_reduced_CEI[month==4, CEI:=lag_4, by = "Id"]
+panel_reduced_CEI[month==3, CEI:=lag_3, by = "Id"]
+panel_reduced_CEI[month==2, CEI:=lag_2, by = "Id"]
+panel_reduced_CEI[month==1, CEI:=lag_1, by = "Id"]
+panel_reduced_CEI[month==12, CEI:=lag_12, by = "Id"]
+panel_reduced_CEI[month==11, CEI:=lag_11, by = "Id"]
+panel_reduced_CEI[month==10, CEI:=lag_10, by = "Id"]
+panel_reduced_CEI[month==9, CEI:=lag_9, by = "Id"]
+panel_reduced_CEI[month==8, CEI:=lag_8, by = "Id"]
+panel_reduced_CEI[month==7, CEI:=lag_7, by = "Id"]
 
 panel_reduced_CEI <- panel_reduced_CEI %>% 
   select(Id, ym, MV.USD, RET.USD, `CEI`)
@@ -989,6 +991,9 @@ Factor_data_ff5_FM <- panel_reduced_REM %>%
 ```{r}
 save(Factor_data_ff5_FM, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data_FF5_FM.RData")
 ```
+
+
+
 
 ##Factor data FF5 for Double Sort
 ```{r}
