@@ -198,6 +198,7 @@ panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
 #WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
 #C/P: Cash flow-to- price. Cash flow is defined as operating cash flow (WC04860).
 
+
 panel_reduced_val <- panel_reduced_val[,Book_Value := WC03501 + WC03263]
 
 panel_reduced_val[,year:=substr(ym,1,4)]
