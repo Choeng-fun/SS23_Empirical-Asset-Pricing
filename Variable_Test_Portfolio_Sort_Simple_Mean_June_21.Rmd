@@ -21,13 +21,18 @@ library(zoo)
 ```
 
 ```{r}
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_May28.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_June29.RData")
 load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
 panel_country <- as.data.table(panel_country)
 ```
 
 ##Create regression data
 ###Coefficients
+```{r}
+DTB6_monthly[,ym:=NULL]
+DTB6_monthly[,ym:=paste(year,month,sep = ".")]
+```
+
 ```{r}
 #merging panel_country with DTB6_monthly(risk free rate) 
 panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
@@ -132,41 +137,143 @@ resid_60 <- panel_reduced %>%
 ####B/M
 ```{r}
 # Select only necessary variables from the comprehensive data set
-panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05476", "WC05001")]
+panel_reduced_BM<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
-count_table <- panel_reduced_val[,.N,by=Id]
-panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
+count_table <- panel_reduced_BM[,.N,by=Id]
+panel_reduced_BM <- panel_reduced_BM[count_table[N>12]$Id]
 
-#WC05001 Market Price, WC05476 Book Value per Share
-panel_reduced_val <- panel_reduced_val[,BTM := WC05476/WC05001]
+#common equity (Worldscope item WC03501) plus deferred taxes (WC03263) 
+#Earnings are measured before extraordinary items (WC01551)
+#WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+
+panel_reduced_BM <- panel_reduced_BM[,Book_Value := WC03501 + WC03263]
+
+panel_reduced_BM <- panel_reduced_BM[,`B/M`:= Book_Value/(MV*1000)]
+panel_reduced_EP <- panel_reduced_BM[,`E/P` := WC01551/(MV*1000)]
+panel_reduced_ <- panel_reduced_EB[,`EBITDA/EV` := WC18198/WC18100]
+
+panel_reduced_BM <- panel_reduced_BM %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`)
+
 panel_reduced_val <- panel_reduced_val %>% 
-  select(Id, ym, MV.USD, RET.USD, BTM)
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
 
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
-panel_reduced_val <- panel_reduced_val[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","BTM")]
-setorder(panel_reduced_val,ym,BTM) 
-panel_reduced_val <- panel_reduced_val[, Decile := ntile(BTM, 10), by = ym]
-panel_reduced_val <- panel_reduced_val[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+panel_reduced_BM <- panel_reduced_BM[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","B/M")]
+setorder(panel_reduced_BM,ym,`B/M`) 
+panel_reduced_BM <- panel_reduced_BM[, Decile := ntile(`B/M`, 10), by = ym]
+panel_reduced_BM <- panel_reduced_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
 
 ```{r}
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
-portfolio_returns_val <- panel_reduced_val %>% 
+portfolio_returns_BM <- panel_reduced_BM %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
   summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
-  mutate(Ret_val = `10`-`1`)
+  mutate(`Ret_B/M` = `10`-`1`)
 ```
 
 ```{r}
 # Test if the momentum return is significantly different from 0
-portfolio_returns_val <- as.data.table(portfolio_returns_val)
-portfolio_returns_val[,t.test(Ret_val)]
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
 ```
 
 ####E/P
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_BM<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_BM[,.N,by=Id]
+panel_reduced_BM <- panel_reduced_BM[count_table[N>12]$Id]
+
+#common equity (Worldscope item WC03501) plus deferred taxes (WC03263) 
+#Earnings are measured before extraordinary items (WC01551)
+#WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+
+panel_reduced_BM <- panel_reduced_BM[,Book_Value := WC03501 + WC03263]
+
+panel_reduced_BM <- panel_reduced_BM[,`B/M`:= Book_Value/(MV*1000)]
+panel_reduced_EP <- panel_reduced_BM[,`E/P` := WC01551/(MV*1000)]
+panel_reduced_ <- panel_reduced_EB[,`EBITDA/EV` := WC18198/WC18100]
+
+panel_reduced_BM <- panel_reduced_BM %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`)
+
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_BM <- panel_reduced_BM[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","B/M")]
+setorder(panel_reduced_BM,ym,`B/M`) 
+panel_reduced_BM <- panel_reduced_BM[, Decile := ntile(`B/M`, 10), by = ym]
+panel_reduced_BM <- panel_reduced_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_BM <- panel_reduced_BM %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_B/M` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
+
 ####EBITDA/EV
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_BM<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_BM[,.N,by=Id]
+panel_reduced_BM <- panel_reduced_BM[count_table[N>12]$Id]
+
+#common equity (Worldscope item WC03501) plus deferred taxes (WC03263) 
+#Earnings are measured before extraordinary items (WC01551)
+#WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+
+panel_reduced_BM <- panel_reduced_BM[,Book_Value := WC03501 + WC03263]
+
+panel_reduced_BM <- panel_reduced_BM[,`B/M`:= Book_Value/(MV*1000)]
+panel_reduced_EP <- panel_reduced_BM[,`E/P` := WC01551/(MV*1000)]
+panel_reduced_ <- panel_reduced_EB[,`EBITDA/EV` := WC18198/WC18100]
+
+panel_reduced_BM <- panel_reduced_BM %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`)
+
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`, `E/P`, `EBITDA/EV`)
+
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_BM <- panel_reduced_BM[!is.na(BTM),c("Id","ym","MV.USD","RET.USD","B/M")]
+setorder(panel_reduced_BM,ym,`B/M`) 
+panel_reduced_BM <- panel_reduced_BM[, Decile := ntile(`B/M`, 10), by = ym]
+panel_reduced_BM <- panel_reduced_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_BM <- panel_reduced_BM %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_B/M` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
 
 ###Size
 ####Log_MV
