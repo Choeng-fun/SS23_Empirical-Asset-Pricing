@@ -1,0 +1,36 @@
+---
+title: "Hanauer's Method"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(tidyr)
+library(zoo)
+```
+
+```{r}
+load("Factor_data.RData")
+Factor_data <- as.data.table(Factor_data)
+```
+
+```{r}
+panel_a <- Factor_data[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(Log_MV) & !is.infinite(Log_MV),
+                                            .(gamma_zero=lm(RET.USD~Beta_3+`B/M`+Log_MV)$coefficient[1],
+                                              gamma_beta=lm(RET.USD~Beta_3+`B/M`+Log_MV)$coefficient[2],
+                                              gamma_bm=lm(RET.USD~Beta_3+`B/M`+Log_MV)$coefficient[3],
+                                              gamma_mv=lm(RET.USD~Beta_3+`B/M`+Log_MV)$coefficient[4],
+                                              no.obs=length(Id)),by=ym]
+
+
+panel_a[,t.test(gamma_zero)]
+panel_a[,t.test(gamma_beta)]
+panel_a[,t.test(gamma_bm)]
+panel_a[,t.test(gamma_mv)]
+```
+
