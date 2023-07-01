@@ -37,16 +37,25 @@ Factor_data_ff5_FM_temp3 <- Factor_data_ff5_FM[str_sub(ym, -2, -2)!="." & strtoi
 Factor_data_ff5_FM_temp <- rbind(Factor_data_ff5_FM_temp3, Factor_data_ff5_FM_temp1_2)
 ```
 
-
 ```{r}
 beta <- Factor_data_ff5_FM_temp %>% 
   group_by(ym) %>% 
   summarise(Beta = mean(Beta_3, na.rm=T)) %>%
   as.data.frame()
+  ungroup()
 ```
 
 ```{r}
-wide_data <- reshape(Factor_data_ff5_FM_temp, idvar = "ym", timevar = "Id", direction = "wide")
+regression_df <- as.data.table(Factor_data_ff5_FM_temp)
+```
+
+```{r}
+test <- regression_df %>% 
+  select(Id, ym, RE.USD, Beta_3, `B/M`, `OP/BE`, AG, MV)
+  # drop_na()
+  # group_by(ym) %>% 
+  # summarise(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+AG+MV)$coefficient[1]) %>%
+  # ungroup()
 ```
 
 ```{r}
