@@ -85,6 +85,27 @@ panel_b[,t.test(gamma_mom)]
 ```
 
 ```{r}
+panel_c_0 <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(AG) & !is.infinite(AG) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
+                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[1],
+                                              gamma_beta=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[2],
+                                              gamma_bmm=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[3],
+                                              gamma_opbe=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[4],
+                                              gamma_ag=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[5],
+                                              gamma_mv=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[6],
+                                              gamma_mom=lm(RE.USD~Beta_3+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[7],
+                                              no.obs=length(Id)),by=ym]
+
+
+panel_c_0[,t.test(gamma_zero)]
+panel_c_0[,t.test(gamma_beta)]
+panel_c_0[,t.test(gamma_bmm)]
+panel_c_0[,t.test(gamma_opbe)]
+panel_c_0[,t.test(gamma_ag)]
+panel_c_0[,t.test(gamma_mv)]
+panel_c_0[,t.test(gamma_mom)]
+```
+
+```{r}
 panel_c <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(AG) & !is.infinite(AG) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
                                             .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[1],
                                               gamma_beta=lm(RE.USD~Beta_3+`B/M`+`B/Mm`+`OP/BE`+AG+MV+Mom_12_2)$coefficient[2],
@@ -252,15 +273,16 @@ panel_f[,t.test(gamma_mom)]
 ```
 
 ```{r}
-panel_g <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(CEI) & !is.infinite(CEI) & !is.na(MV) & !is.infinite(MV),
-                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[1],
-                                              gamma_beta=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[2],
-                                              gamma_bm=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[3],
-                                              gamma_opbe=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[4],
-                                              gamma_noa=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[5],
-                                              gamma_ag=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[6],
-                                              gamma_cei=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[7],
-                                              gamma_mv=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[8]
+panel_g <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(CEI) & !is.infinite(CEI) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
+                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[1],
+                                              gamma_beta=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[2],
+                                              gamma_bm=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[3],
+                                              gamma_opbe=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[4],
+                                              gamma_noa=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[5],
+                                              gamma_ag=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[6],
+                                              gamma_cei=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[7],
+                                              gamma_mv=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[8],
+                                              gamma_mom=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[9])
                               ,by=ym]
 
 
@@ -272,5 +294,75 @@ panel_g[,t.test(gamma_noa)]
 panel_g[,t.test(gamma_ag)]
 panel_g[,t.test(gamma_cei)]
 panel_g[,t.test(gamma_mv)]
+panel_g[,t.test(gamma_mom)]
+```
+
+```{r}
+panel_g_1_2 <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
+                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[1],
+                                              gamma_beta=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[2],
+                                              gamma_bm=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[3],
+                                              gamma_opbe=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[4],
+                                              gamma_noa=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[5],
+                                              gamma_ag=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[6],
+                                              gamma_mv=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[7],
+                                              gamma_mom=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+MV+Mom_12_2)$coefficient[8])
+                              ,by=ym]
+
+
+panel_g_1_2[,t.test(gamma_zero)]
+panel_g_1_2[,t.test(gamma_beta)]
+panel_g_1_2[,t.test(gamma_bm)]
+panel_g_1_2[,t.test(gamma_opbe)]
+panel_g_1_2[,t.test(gamma_noa)]
+panel_g_1_2[,t.test(gamma_ag)]
+panel_g_1_2[,t.test(gamma_mv)]
+panel_g_1_2[,t.test(gamma_mom)]
+```
+
+```{r}
+panel_g2 <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(`OP/BE`) & !is.infinite(`OP/BE`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(CEI) & !is.infinite(CEI) & !is.na(MV) & !is.infinite(MV),
+                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[1],
+                                              gamma_beta=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[2],
+                                              gamma_bm=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[3],
+                                              gamma_opbe=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[4],
+                                              gamma_noa=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[5],
+                                              gamma_ag=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[6],
+                                              gamma_cei=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[7],
+                                              gamma_mv=lm(RE.USD~Beta_3+`B/M`+`OP/BE`+NOA+AG+CEI+MV)$coefficient[8])
+                              ,by=ym]
+
+
+panel_g2[,t.test(gamma_zero)]
+panel_g2[,t.test(gamma_beta)]
+panel_g2[,t.test(gamma_bm)]
+panel_g2[,t.test(gamma_opbe)]
+panel_g2[,t.test(gamma_noa)]
+panel_g2[,t.test(gamma_ag)]
+panel_g2[,t.test(gamma_cei)]
+panel_g2[,t.test(gamma_mv)]
+```
+
+```{r}
+panel_h <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`B/M`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(CEI) & !is.infinite(CEI) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
+                                            .(gamma_zero=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[1],
+                                              gamma_beta=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[2],
+                                              gamma_bm=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[3],
+                                              gamma_noa=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[4],
+                                              gamma_ag=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[5],
+                                              gamma_cei=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[6],
+                                              gamma_mv=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[7],
+                                              gamma_mom=lm(RE.USD~Beta_3+`B/M`+NOA+AG+CEI+MV+Mom_12_2)$coefficient[8])
+                              ,by=ym]
+
+
+panel_h[,t.test(gamma_zero)]
+panel_h[,t.test(gamma_beta)]
+panel_h[,t.test(gamma_bm)]
+panel_h[,t.test(gamma_noa)]
+panel_h[,t.test(gamma_ag)]
+panel_h[,t.test(gamma_cei)]
+panel_h[,t.test(gamma_mv)]
+panel_h[,t.test(gamma_mom)]
 ```
 
