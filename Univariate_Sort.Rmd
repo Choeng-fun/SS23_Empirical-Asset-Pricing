@@ -20,16 +20,12 @@ library(zoo)
 ```
 
 ```{r}
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_June29.RData")
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
-panel_country <- as.data.table(panel_country)
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Factor_data_MSCI.RData")
+Factor_data_MSCI <- as.data.table(Factor_data_MSCI)
 ```
 
 ## Value
 
-```{r}
-Factor_data_MSCI_r <- Factor_data_MSCI[complete.cases(Factor_data_MSCI)]
-```
 
 ### B/M
 ```{r}
@@ -178,7 +174,7 @@ portfolio_returns_CPm[,t.test(`Ret_C/Pm`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_EE <- Factor_data_MSCI[!is.na(`EBITDA/EV`),c("Id","ym","MV.USD","RET.USD","EBITDA/EV")]
-panel_reduced_EE <- panel_reduced_CPm[`EBITDA/EV` > 0]
+panel_reduced_EE <- panel_reduced_EE[`EBITDA/EV` > 0]
 setorder(panel_reduced_EE,ym,`EBITDA/EV`) 
 panel_reduced_EE <- panel_reduced_EE[, Decile := ntile(`EBITDA/EV`, 10), by = ym]
 panel_reduced_EE <- panel_reduced_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
@@ -254,7 +250,7 @@ portfolio_returns_MV[,t.test(`Ret_MV`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_RSI <- Factor_data_MSCI[!is.na(RSI),c("Id","ym","MV.USD","RET.USD","RSI")]
-setorder(panel_reduced_lnMV,ym,RSI) 
+setorder(panel_reduced_RSI,ym,RSI) 
 panel_reduced_RSI <- panel_reduced_RSI[, Decile := ntile(RSI, 10), by = ym]
 panel_reduced_RSI <- panel_reduced_RSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
@@ -301,7 +297,7 @@ portfolio_returns_alpha_1[,t.test(`Ret_Alpha_1`)]
 ###Alpha_3
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
-panel_reduced_alpha_3 <- Factor_data_MSCI[!is.na(Alpha_3),c("Id","ym","MV.USD","RET.USD","Alpha_1")]
+panel_reduced_alpha_3 <- Factor_data_MSCI[!is.na(Alpha_3),c("Id","ym","MV.USD","RET.USD","Alpha_3")]
 setorder(panel_reduced_alpha_3,ym,Alpha_3) 
 panel_reduced_alpha_3 <- panel_reduced_alpha_3[, Decile := ntile(Alpha_3, 10), by = ym]
 panel_reduced_alpha_3 <- panel_reduced_alpha_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
@@ -342,8 +338,32 @@ portfolio_returns_alpha_5 <- panel_reduced_alpha_5 %>%
 
 ```{r}
 # Test if the momentum return is significantly different from 0
-portfolio_returns_alpha_5 <- as.data.table(portfolio_returns_alpha_1)
+portfolio_returns_alpha_5 <- as.data.table(portfolio_returns_alpha_5)
 portfolio_returns_alpha_5[,t.test(`Ret_Alpha_5`)]
+```
+
+### Momentum_12_2
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_momentum <- Factor_data_MSCI[!is.na(Mom_12_2),c("Id","ym","MV.USD","RET.USD","Mom_12_2")]
+setorder(panel_reduced_momentum,ym,Mom_12_2) 
+panel_reduced_momentum <- panel_reduced_momentum[, Decile := ntile(Mom_12_2, 10), by = ym]
+panel_reduced_momentum <- panel_reduced_momentum[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_momentum <- panel_reduced_momentum %>%
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_Mom_12_2` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_momentum <- as.data.table(portfolio_returns_momentum)
+portfolio_returns_momentum[,t.test(`Ret_Mom_12_2`)]
 ```
 
 ## Yield
@@ -400,8 +420,8 @@ portfolio_returns_ROE[,t.test(`Ret_ROE`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_ROA <- Factor_data_MSCI[!is.na(ROA),c("Id","ym","MV.USD","RET.USD","ROA")]
-setorder(panel_reduced_ROE,ym,ROA) 
-panel_reduced_ROA <- panel_reduced_ROA[, Decile := ntile(ROE, 10), by = ym]
+setorder(panel_reduced_ROA,ym,ROA) 
+panel_reduced_ROA <- panel_reduced_ROA[, Decile := ntile(ROA, 10), by = ym]
 panel_reduced_ROA <- panel_reduced_ROA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
 
@@ -569,7 +589,7 @@ portfolio_returns_beta_3[,t.test(`Ret_Beta_3`)]
 ### Beta_5
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
-panel_reduced_beta_5 <- Factor_data_MSCI[!is.na(Beta_5),c("Id","ym","MV.USD","RET.USD","Beta_1")]
+panel_reduced_beta_5 <- Factor_data_MSCI[!is.na(Beta_5),c("Id","ym","MV.USD","RET.USD","Beta_5")]
 setorder(panel_reduced_beta_5,ym,Beta_5) 
 panel_reduced_beta_5 <- panel_reduced_beta_5[, Decile := ntile(Beta_5, 10), by = ym]
 panel_reduced_beta_5 <- panel_reduced_beta_5[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
@@ -594,7 +614,7 @@ portfolio_returns_beta_5[,t.test(`Ret_Beta_5`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_sigma_1 <- Factor_data_MSCI[!is.na(Sigma_1),c("Id","ym","MV.USD","RET.USD","Sigma_1")]
-setorder(panel_reduced_sigma_1,ym,sigma_1) 
+setorder(panel_reduced_sigma_1,ym,Sigma_1) 
 panel_reduced_sigma_1 <- panel_reduced_sigma_1[, Decile := ntile(Sigma_1, 10), by = ym]
 panel_reduced_sigma_1 <- panel_reduced_sigma_1[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
@@ -618,7 +638,7 @@ portfolio_returns_sigma_1[,t.test(`Ret_Sigma_1`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_sigma_3 <- Factor_data_MSCI[!is.na(Sigma_3),c("Id","ym","MV.USD","RET.USD","Sigma_3")]
-setorder(panel_reduced_sigma_3,ym,sigma_3) 
+setorder(panel_reduced_sigma_3,ym,Sigma_3) 
 panel_reduced_sigma_3 <- panel_reduced_sigma_3[, Decile := ntile(Sigma_3, 10), by = ym]
 panel_reduced_sigma_3 <- panel_reduced_sigma_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
@@ -642,7 +662,7 @@ portfolio_returns_sigma_3[,t.test(`Ret_Sigma_3`)]
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_sigma_5 <- Factor_data_MSCI[!is.na(Sigma_5),c("Id","ym","MV.USD","RET.USD","Sigma_5")]
-setorder(panel_reduced_sigma_5,ym,sigma_5) 
+setorder(panel_reduced_sigma_5,ym,Sigma_5) 
 panel_reduced_sigma_5 <- panel_reduced_sigma_5[, Decile := ntile(Sigma_5, 10), by = ym]
 panel_reduced_sigma_5 <- panel_reduced_sigma_5[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
@@ -691,25 +711,25 @@ portfolio_returns_sd[,t.test(`Ret_SD`)]
 ### T/O
 ```{r}
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
-panel_reduced_TO <- Factor_data_MSCI[!is.na(`T/O`),c("Id","ym","MV.USD","RET.USD","T/O")]
-setorder(panel_reduced_TO,ym,`T/O`) 
-panel_reduced_TO <- panel_reduced_TO[, Decile := ntile(`T/O`, 10), by = ym]
-panel_reduced_TO <- panel_reduced_TO[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+#panel_reduced_TO <- Factor_data_MSCI[!is.na(`T/O`),c("Id","ym","MV.USD","RET.USD","T/O")]
+#setorder(panel_reduced_TO,ym,`T/O`) 
+#panel_reduced_TO <- panel_reduced_TO[, Decile := ntile(`T/O`, 10), by = ym]
+#panel_reduced_TO <- panel_reduced_TO[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
 
 ```{r}
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
-portfolio_returns_TO <- panel_reduced_TO %>%
-  group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
-  spread(Decile,ret.port) %>% # create one column for each group
-  mutate(`Ret_T/O` = `10`-`1`)
+#portfolio_returns_TO <- panel_reduced_TO %>%
+#  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+#  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+#  spread(Decile,ret.port) %>% # create one column for each group
+#  mutate(`Ret_T/O` = `10`-`1`)
 ```
 
 ```{r}
 # Test if the momentum return is significantly different from 0
-portfolio_returns_TO <- as.data.table(portfolio_returns_TO)
-portfolio_returns_TO[,t.test(`Ret_T/O`)]
+#portfolio_returns_TO <- as.data.table(portfolio_returns_TO)
+#portfolio_returns_TO[,t.test(`Ret_T/O`)]
 ```
 
 ## Growth
@@ -742,7 +762,7 @@ portfolio_returns_eps[,t.test(`Ret_EPS`)]
 # Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
 panel_reduced_sps <- Factor_data_MSCI[!is.na(SPS),c("Id","ym","MV.USD","RET.USD","SPS")]
 setorder(panel_reduced_sps,ym,SPS) 
-panel_reduced_sps <- panel_reduced_sps[, Decile := ntile(EPS, 10), by = ym]
+panel_reduced_sps <- panel_reduced_sps[, Decile := ntile(SPS, 10), by = ym]
 panel_reduced_sps <- panel_reduced_sps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 ```
 

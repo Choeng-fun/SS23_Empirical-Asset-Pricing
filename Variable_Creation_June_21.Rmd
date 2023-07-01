@@ -668,28 +668,20 @@ panel_reduced_sd <- panel_reduced %>%
 ###liquidity
 ####T/O
 
-```{r}
-#Check the number of outstanding data
-trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
-
-# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
-
-count_table <- trad[,.N,by=Id]
-trad <- trad[count_table[N>12]$Id]
-```
 
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
+panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301","NOSH")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
 count_table <- panel_reduced_TO[,.N,by=Id]
 panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
 
-#WC05651 Common Shares Traded - Annual #WC05301 Common Shares Outstanding
-panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
-panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
+#WC05651 Common Shares Traded - Annual
+# NOSH the number of shares outstanding
+panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(NOSH, n = 12)]
+panel_reduced_TO[,Avg_Out := (NOSH + Lagged_Out)/2]
 panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
 
 panel_reduced_TO <- panel_reduced_TO %>% select(Id, ym, MV.USD, RET.USD, `T/O`)
@@ -719,8 +711,7 @@ panel_reduced_eps <- panel_reduced_eps %>%
 names(panel_reduced_eps) <- c("Id","ym","MV.USD","RET.USD", "EPS")
 ```
 
-####SPS
-
+#### SPS
 ```{r}
 # Select only necessary variables from the comprehensive data set
 panel_reduced_sps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "WC05508")]
@@ -1045,7 +1036,7 @@ Factor_data_MSCI <- panel_reduced_REM %>%
   full_join(panel_reduced_NSI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_CEI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_IA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  select(Id, ym, MV.USD, RET.USD, REM.USD, RE.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,AG,NSI,CEI,`I/A`)
+  select(Id, ym, MV.USD, RET.USD, REM.USD, RE.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_1, Alpha_3, Alpha_5, Mom_12_2, DY, ROE, ROA, Beta_1, Beta_3, Beta_5, Sigma_1, Sigma_3, Sigma_5, SD, `T/O`, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
 ```
 
 
