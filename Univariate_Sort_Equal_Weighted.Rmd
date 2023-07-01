@@ -1,8 +1,10 @@
 ---
-title: "Univariate_Sort"
+title: "Univariate_Sort_Equal_Weighted"
 author: "Yasu"
-date: "2023-07-01"
-output: html_document
+date: '2023-07-01'
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
