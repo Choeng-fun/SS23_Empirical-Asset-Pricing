@@ -29,17 +29,8 @@ load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
 panel_country <- as.data.table(panel_country)
 ```
 
-```{r}
-save(DTB6_monthly, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly_June_29.RData")
-```
-
 ##Create regression data 
 ###Coefficients
-
-```{r}
-DTB6_monthly[,ym:=NULL]
-DTB6_monthly[,ym:=paste(year,month,sep = ".")]
-```
 
 ```{r}
 #merging panel_country with DTB6_monthly(risk free rate) 
@@ -181,10 +172,6 @@ check_copy[month==9,MV_last_dec:=MV_lag_9]
 check_copy[month==10,MV_last_dec:=MV_lag_10]
 check_copy[month==11,MV_last_dec:=MV_lag_11]
 check_copy[month==12,MV_last_dec:=MV_lag_12]
-
-
-
-
 ```
 
 ```{r}
@@ -203,8 +190,6 @@ panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
 
 panel_reduced_val <- panel_reduced_val[,Book_Value := WC03501 + WC03263]
 
-panel_reduced_val[,year:=substr(ym,1,4)]
-panel_reduced_val[,month:=substr(ym,6,7)]
 
 panel_reduced_val[,MV_lag_7:=lag(MV,7), by = "Id"]
 panel_reduced_val[,MV_lag_8:=lag(MV,8), by = "Id"]
@@ -235,6 +220,10 @@ panel_reduced_val[month==12,MV_last_dec:=MV_lag_12, by = "Id"]
 
 panel_reduced_val <- panel_reduced_val[,`B/M`:= Book_Value/(MV_last_dec*1000)]
 panel_reduced_val <- panel_reduced_val[,`B/Mm`:= Book_Value/(MV*1000)]
+
+check <- panel_reduced_val %>% 
+  select(Id, year, month, ym, MV.USD, MV, MV_last_dec, `B/M`, `B/Mm`)
+
 panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV_last_dec*1000)]
 panel_reduced_val <- panel_reduced_val[,`E/Pm` := WC01551/(MV*1000)]
 panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
@@ -290,6 +279,7 @@ panel_reduced_rsi <- panel_reduced_rsi %>%
   select(Id, ym, MV.USD, RET.USD, RSI)
 ```
 
+
 ####Alpha_1
 
 ```{r}
@@ -344,7 +334,8 @@ panel_reduced_alpha_5 <- panel_reduced_alpha_5 %>%
   select(Id, ym, MV.USD) %>% 
   full_join(coef_60, by = c("Id", "ym"))
 
-names(panel_reduced_alpha_5) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_5", "Beta_5", "coef_5")
+# coef_60 colums order is diffirent from coef_12 and coef_36
+names(panel_reduced_alpha_5) <- c("Id", "ym", "MV.USD", "RET.USD", "coef_5", "Alpha_5", "Beta_5")
 
 panel_reduced_alpha_5 <- panel_reduced_alpha_5 %>%
   select(Id, ym, MV.USD, RET.USD, Alpha_5)
@@ -1058,10 +1049,12 @@ Factor_data_MSCI <- panel_reduced_REM %>%
 ```
 
 
-
 ```{r}
 save(Factor_data_MSCI, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Factor_data_MSCI.RData")
 ```
+
+
+
 
 ```{r}
 save(DTB6_monthly, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly_June_29.RData")
