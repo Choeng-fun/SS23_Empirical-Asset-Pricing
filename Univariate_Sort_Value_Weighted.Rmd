@@ -1,7 +1,7 @@
 ---
-title: "Univariate_Sort"
+title: "Univariate_Sort_Value_Weighted"
 author: "Yasu"
-date: "2023-07-01"
+date: '2023-07-01'
 output: html_document
 ---
 
@@ -38,7 +38,7 @@ panel_reduced_BM <- panel_reduced_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_BM <- panel_reduced_BM %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%# calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_B/M` = `10`-`1`)
 ```
@@ -62,7 +62,7 @@ panel_reduced_BMm <- panel_reduced_BMm[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_BMm <- panel_reduced_BMm %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_B/Mm` = `10`-`1`)
 ```
@@ -86,7 +86,7 @@ panel_reduced_EP <- panel_reduced_EP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_EP <- panel_reduced_EP %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_E/P` = `10`-`1`)
 ```
@@ -110,7 +110,7 @@ panel_reduced_EPm <- panel_reduced_EPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_EPm <- panel_reduced_EPm %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_E/Pm` = `10`-`1`)
 ```
@@ -134,7 +134,7 @@ panel_reduced_CP <- panel_reduced_CP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_CP <- panel_reduced_CP %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_C/P` = `10`-`1`)
 ```
@@ -158,7 +158,7 @@ panel_reduced_CPm <- panel_reduced_CPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_CPm <- panel_reduced_CPm %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_C/Pm` = `10`-`1`)
 ```
@@ -182,7 +182,7 @@ panel_reduced_EE <- panel_reduced_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_EE <- panel_reduced_EE %>% 
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_EBITDA/EV` = `10`-`1`)
 ```
@@ -208,7 +208,7 @@ panel_reduced_lnMV <- panel_reduced_lnMV[!is.na(MV.USD) & !is.na(RET.USD) & Deci
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_lnMV <- panel_reduced_lnMV %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Log_MV` = `10`-`1`)
 ```
@@ -232,7 +232,7 @@ panel_reduced_MV <- panel_reduced_MV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_MV <- panel_reduced_MV %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_MV` = `10`-`1`)
 ```
@@ -257,7 +257,7 @@ panel_reduced_RSI <- panel_reduced_RSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_RSI <- panel_reduced_RSI %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_RSI` = `10`-`1`)
 ```
@@ -281,7 +281,7 @@ panel_reduced_alpha_1 <- panel_reduced_alpha_1[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_alpha_1 <- panel_reduced_alpha_1 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Alpha_1` = `10`-`1`)
 ```
@@ -305,7 +305,7 @@ panel_reduced_alpha_3 <- panel_reduced_alpha_3[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_alpha_3 <- panel_reduced_alpha_3 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Alpha_3` = `10`-`1`)
 ```
@@ -329,7 +329,7 @@ panel_reduced_alpha_5 <- panel_reduced_alpha_5[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_alpha_5 <- panel_reduced_alpha_5 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Alpha_5` = `10`-`1`)
 ```
@@ -353,7 +353,7 @@ panel_reduced_momentum <- panel_reduced_momentum[!is.na(MV.USD) & !is.na(RET.USD
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_momentum <- panel_reduced_momentum %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Mom_12_2` = `10`-`1`)
 ```
@@ -378,7 +378,7 @@ panel_reduced_yield <- panel_reduced_yield[!is.na(MV.USD) & !is.na(RET.USD) & De
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_yield <- panel_reduced_yield %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_DY` = `10`-`1`)
 ```
@@ -403,7 +403,7 @@ panel_reduced_ROE <- panel_reduced_ROE[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_ROE <- panel_reduced_ROE %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_ROE` = `10`-`1`)
 ```
@@ -427,7 +427,7 @@ panel_reduced_ROA <- panel_reduced_ROA[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_ROA <- panel_reduced_ROA %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_ROA` = `10`-`1`)
 ```
@@ -451,7 +451,7 @@ panel_reduced_GPA <- panel_reduced_GPA[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_GPA <- panel_reduced_GPA %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_GP/A` = `10`-`1`)
 ```
@@ -475,7 +475,7 @@ panel_reduced_OPBE <- panel_reduced_OPBE[!is.na(MV.USD) & !is.na(RET.USD) & Deci
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_OPBE <- panel_reduced_OPBE %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_OP/BE` = `10`-`1`)
 ```
@@ -499,7 +499,7 @@ panel_reduced_NOA <- panel_reduced_NOA[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_NOA <- panel_reduced_NOA %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_NOA` = `10`-`1`)
 ```
@@ -523,7 +523,7 @@ panel_reduced_OA <- panel_reduced_OA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_OA <- panel_reduced_OA %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_OA` = `10`-`1`)
 ```
@@ -549,7 +549,7 @@ panel_reduced_beta_1 <- panel_reduced_beta_1[!is.na(MV.USD) & !is.na(RET.USD) & 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_beta_1 <- panel_reduced_beta_1 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Beta_1` = `10`-`1`)
 ```
@@ -573,7 +573,7 @@ panel_reduced_beta_3 <- panel_reduced_beta_3[!is.na(MV.USD) & !is.na(RET.USD) & 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_beta_3 <- panel_reduced_beta_3 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Beta_3` = `10`-`1`)
 ```
@@ -597,7 +597,7 @@ panel_reduced_beta_5 <- panel_reduced_beta_5[!is.na(MV.USD) & !is.na(RET.USD) & 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_beta_5 <- panel_reduced_beta_5 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Beta_5` = `10`-`1`)
 ```
@@ -621,7 +621,7 @@ panel_reduced_sigma_1 <- panel_reduced_sigma_1[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_sigma_1 <- panel_reduced_sigma_1 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Sigma_1` = `10`-`1`)
 ```
@@ -645,7 +645,7 @@ panel_reduced_sigma_3 <- panel_reduced_sigma_3[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_sigma_3 <- panel_reduced_sigma_3 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Sigma_3` = `10`-`1`)
 ```
@@ -669,7 +669,7 @@ panel_reduced_sigma_5 <- panel_reduced_sigma_5[!is.na(MV.USD) & !is.na(RET.USD) 
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_sigma_5 <- panel_reduced_sigma_5 %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_Sigma_5` = `10`-`1`)
 ```
@@ -693,7 +693,7 @@ panel_reduced_sd <- panel_reduced_sd[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_sd <- panel_reduced_sd %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_SD` = `10`-`1`)
 ```
@@ -744,7 +744,7 @@ panel_reduced_eps <- panel_reduced_eps[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_eps <- panel_reduced_eps %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_EPS` = `10`-`1`)
 ```
@@ -768,7 +768,7 @@ panel_reduced_sps <- panel_reduced_sps[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_sps <- panel_reduced_sps %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_SPS` = `10`-`1`)
 ```
@@ -793,7 +793,7 @@ panel_reduced_inv <- panel_reduced_inv[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_inv <- panel_reduced_inv %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_AG` = `10`-`1`)
 ```
@@ -817,7 +817,7 @@ panel_reduced_NSI <- panel_reduced_NSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_NSI <- panel_reduced_NSI %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_NSI` = `10`-`1`)
 ```
@@ -841,7 +841,7 @@ panel_reduced_CEI <- panel_reduced_CEI[!is.na(MV.USD) & !is.na(RET.USD) & Decile
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_CEI <- panel_reduced_CEI %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_CEI` = `10`-`1`)
 ```
@@ -865,7 +865,7 @@ panel_reduced_IA <- panel_reduced_IA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %
 # Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
 portfolio_returns_IA <- panel_reduced_IA %>%
   group_by(ym,Decile)%>% # do "everything" for the groups specified here
-  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% # calculate mean return for each group
   spread(Decile,ret.port) %>% # create one column for each group
   mutate(`Ret_I/A` = `10`-`1`)
 ```
