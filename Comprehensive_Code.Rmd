@@ -27,8 +27,8 @@ library(zoo)
 
 ```{r}
 # Load the 3 original dataset
-load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
-load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
+# load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
+# load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
 ```
 
 ```{r}
@@ -57,8 +57,259 @@ panel_country[,month_new:=NULL]
 
 ## 2. Variable Creation
 
-### 2.1 Alpha and Beta
-#### 2.1.1 Coef
+### 2.1 Size Variables
+
+#### 2.1.1 Log_MV
+
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_lnMV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_lnMV[,.N,by=Id]
+panel_reduced_lnMV <- panel_reduced_lnMV[count_table[N>12]$Id]
+
+#WC05001 Market Price, WC05476 Book Value per Share
+panel_reduced_lnMV <- panel_reduced_lnMV[, Log_MV := log(MV.USD)]
+
+panel_reduced_lnMV <- panel_reduced_lnMV %>% 
+  select(Id, ym, MV.USD, RET.USD, Log_MV)
+```
+
+
+### 2.2 Value Variables
+
+#### 2.2.1 B/M and B/Mm
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198","WC04860")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_val[,.N,by=Id]
+panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
+
+# Book value = common equity (WC03501) + deferred taxes (WC03263) 
+panel_reduced_val <- panel_reduced_val[,Book_Value := WC03501 + WC03263]
+
+panel_reduced_val[,MV_lag_7:=lag(MV,7), by = "Id"]
+panel_reduced_val[,MV_lag_8:=lag(MV,8), by = "Id"]
+panel_reduced_val[,MV_lag_9:=lag(MV,9), by = "Id"]
+panel_reduced_val[,MV_lag_10:=lag(MV,10), by = "Id"]
+panel_reduced_val[,MV_lag_11:=lag(MV,11), by = "Id"]
+panel_reduced_val[,MV_lag_12:=lag(MV,12), by = "Id"]
+panel_reduced_val[,MV_lag_13:=lag(MV,13), by = "Id"]
+panel_reduced_val[,MV_lag_14:=lag(MV,14), by = "Id"]
+panel_reduced_val[,MV_lag_15:=lag(MV,15), by = "Id"]
+panel_reduced_val[,MV_lag_16:=lag(MV,16), by = "Id"]
+panel_reduced_val[,MV_lag_17:=lag(MV,17), by = "Id"]
+panel_reduced_val[,MV_lag_18:=lag(MV,18), by = "Id"]
+
+panel_reduced_val[,MV_last_dec:=0]
+panel_reduced_val[month==1,MV_last_dec:=MV_lag_13, by = "Id"]
+panel_reduced_val[month==2,MV_last_dec:=MV_lag_14, by = "Id"]
+panel_reduced_val[month==3,MV_last_dec:=MV_lag_15, by = "Id"]
+panel_reduced_val[month==4,MV_last_dec:=MV_lag_16, by = "Id"]
+panel_reduced_val[month==5,MV_last_dec:=MV_lag_17, by = "Id"]
+panel_reduced_val[month==6,MV_last_dec:=MV_lag_18, by = "Id"]
+panel_reduced_val[month==7,MV_last_dec:=MV_lag_7, by = "Id"]
+panel_reduced_val[month==8,MV_last_dec:=MV_lag_8, by = "Id"]
+panel_reduced_val[month==9,MV_last_dec:=MV_lag_9, by = "Id"]
+panel_reduced_val[month==10,MV_last_dec:=MV_lag_10, by = "Id"]
+panel_reduced_val[month==11,MV_last_dec:=MV_lag_11, by = "Id"]
+panel_reduced_val[month==12,MV_last_dec:=MV_lag_12, by = "Id"]
+
+# Earnings are measured before extraordinary items (WC01551)
+# WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+# C/P: Cash flow-to- price. Cash flow is defined as operating cash flow (WC04860).
+
+panel_reduced_val <- panel_reduced_val[,`B/M`:= Book_Value/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`B/Mm`:= Book_Value/(MV*1000)]
+```
+
+#### 2.2.2 E/P and E/Pm
+```{r}
+panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`E/Pm` := WC01551/(MV*1000)]
+```
+
+#### 2.2.3 C/P and C/Pm
+```{r}
+panel_reduced_val <- panel_reduced_val[,`C/P` := WC04860/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`C/Pm` := WC04860/(MV*1000)]
+```
+
+
+#### 2.2.4 EBITDA/EV
+```{r}
+panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
+panel_reduced_val <- panel_reduced_val %>% 
+  select(Id, ym, MV.USD, RET.USD, `B/M`,`B/Mm`,  `E/P`, `E/Pm`, `C/P`, `C/Pm`,  `EBITDA/EV`)
+```
+
+
+### 2.3 Yield
+
+#### 2.3.1 DY
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_yield<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05101", "WC05001")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_yield[,.N,by=Id]
+panel_reduced_yield <- panel_reduced_yield[count_table[N>12]$Id]
+
+#WC05101 Dividends per Share WC05001 Market Price
+#Dividend Yield = Dividends Per Share / Price Per Share
+panel_reduced_yield <- panel_reduced_yield[, DY:= WC05101/WC05001*100]
+panel_reduced_yield <- panel_reduced_yield %>%
+  select(Id, ym, MV.USD, RET.USD, DY)
+```
+
+### 2.4 Quality 
+
+#### 2.4.1 ROE
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_ROE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551", "WC03501", "WC03263")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_ROE[,.N,by=Id]
+panel_reduced_ROE <- panel_reduced_ROE[count_table[N>12]$Id]
+
+#earnings before extra- ordinary items (WC01551)
+#common equity (WC03501) plus deferred taxes (WC03263)
+panel_reduced_ROE <- panel_reduced_ROE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC01551/Book_Equity] 
+
+panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
+
+```
+
+#### 2.4.2 ROA
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_ROA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_ROA[,.N,by=Id]
+panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
+
+#earnings before extraordinary items (WC01551) divided by total assets (WC02999)
+panel_reduced_ROA <- panel_reduced_ROA[,ROA:=WC01551/WC02999] 
+
+panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
+```
+
+#### 2.4.3 GP/A
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_GPA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01001","WC01501","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_GPA[,.N,by=Id]
+panel_reduced_GPA <- panel_reduced_GPA[count_table[N>12]$Id]
+
+#gross profits-to-assets is net sales or revenues (WC01001) minus cost of goods sold (WC01501) both divided by total assets (WC02999)
+panel_reduced_GPA <- panel_reduced_GPA[,`GP/A`:=(WC01001-WC01501)/WC02999] 
+
+panel_reduced_GPA <- panel_reduced_GPA %>% select(Id, ym, MV.USD, RET.USD, `GP/A`)
+```
+
+#### 2.4.4 OP/BE
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_OPBE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC03501","WC03263","WC01001","WC01051","WC01251","WC01101")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_OPBE[,.N,by=Id]
+panel_reduced_OPBE <- panel_reduced_OPBE[count_table[N>12]$Id]
+
+#Operating profits-to-book equity. We measure operating profits-to-book equity as in Fama and French (2015) as sales or revenues (WC01001) minus cost of goods sold (WC01051), minus selling, general, and administrative expenses (WC01101), minus interest expense (WC01251); all divided by book equity.
+panel_reduced_OPBE <- panel_reduced_OPBE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101-WC01251)/Book_Equity] 
+
+panel_reduced_OPBE <- panel_reduced_OPBE %>% select(Id, ym, MV.USD, RET.USD, `OP/BE`)
+```
+
+
+#### 2.4.5 NOA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_NOA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999","WC02001","WC03255","WC03426","WC03995")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_NOA[,.N,by=Id]
+panel_reduced_NOA <- panel_reduced_NOA[count_table[N>12]$Id]
+
+#NOA: Net operating assets. As in Hirshleifer et al. (2004), net operating assets in June of year y are defined as operating assets minus operating liabilities for the fiscal year ending in calendar year y − 1; all deflated by total assets (WC02999) for the fiscal year ending in calendar year y − 2. Operating assets is total assets (WC02999) minus cash and short-term investment (WC02001). Operating liabilities is total assets minus short-term and long- term debt (WC03255), minus minority interest (WC03426), minus preferred stock and common equity (WC03995).
+
+panel_reduced_NOA <- panel_reduced_NOA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_TA_2 = shift(WC02999, n = 24)) %>%
+  mutate(Lagged_Cash = shift(WC02001, n = 12)) %>% 
+  mutate(Lagged_SD = shift(WC03255, n = 12)) %>% 
+  mutate(Lagged_Minority = shift(WC03426, n = 12)) %>% 
+  mutate(Lagged_Prefered = shift(WC03995, n = 12)) %>% 
+  mutate(Operating_Asset = Lagged_TA_2 - Lagged_Cash) %>% 
+  mutate(Operating_Liabilit = Lagged_TA_2 - Lagged_SD - Lagged_Minority - Lagged_Prefered) %>% 
+  mutate(NOA = Operating_Asset - Operating_Liabilit) %>% 
+  ungroup
+
+panel_reduced_NOA <- panel_reduced_NOA %>% select(Id, ym, MV.USD, RET.USD, NOA)
+```
+
+#### 2.4.6 OA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_OA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01151","WC02201","WC02001","WC03101","WC03051","WC03063")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_OA[,.N,by=Id]
+panel_reduced_OA <- panel_reduced_OA[count_table[N>12]$Id]
+
+#OA: Operating accruals. Following Sloan (1996), we define operating accruals as the change in operating working capital minus depreciation, depletion, and amortization (WC01151, zero if missing); all deflated by total assets (WC02999). Change in operating working capital is the change in current assets (WC02201) minus change in cash and short- term investments (WC02001), minus change in current liabilities (WC03101), plus change in debt in current liabilities (WC03051), plus change in income taxes payable (WC03063, zero if missing). Operating accruals in June of year y are measured from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1.
+
+panel_reduced_OA <- panel_reduced_OA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_Current_Asset_2 = shift(WC02201, n = 24)) %>%
+  mutate(Lagged_Current_Asset = shift(WC02201, n = 12)) %>% 
+  mutate(Change_Current_Asset = Lagged_Current_Asset - Lagged_Current_Asset_2) %>% 
+  mutate(Lagged_Cash_Short_2 = shift(WC02001, n = 24)) %>%
+  mutate(Lagged_Cash_Short = shift(WC02001, n = 12)) %>% 
+  mutate(Change_Cash_Short = Lagged_Cash_Short - Lagged_Cash_Short_2) %>% 
+  mutate(Lagged_Current_Liability_2 = shift(WC03101, n = 24)) %>%
+  mutate(Lagged_Current_Liability = shift(WC03101, n = 12)) %>%
+  mutate(Change_Current_Liability = Lagged_Current_Liability - Lagged_Current_Liability_2)%>% 
+  mutate(Lagged_Debt_in_2 = shift(WC03051, n = 24)) %>%
+  mutate(Lagged_Debt_in = shift(WC03051, n = 12)) %>%
+  mutate(Change_Debt_in = Lagged_Debt_in - Lagged_Debt_in_2) %>%
+  mutate(Lagged_Income_Tax_2 = shift(WC03063, n = 24)) %>%
+  mutate(Lagged_Income_Tax = shift(WC03063, n = 12)) %>%
+  mutate(Change_Income_Tax = Lagged_Income_Tax - Lagged_Income_Tax_2)%>%
+  mutate(Lagged_Dep = shift(WC01151, n = 12))%>% 
+  mutate(Change_in_Ope_Wor_Cap = Change_Current_Asset - Change_Cash_Short - Change_Current_Liability + Change_Debt_in + Change_Income_Tax) %>% 
+  mutate(OA = Change_in_Ope_Wor_Cap - Lagged_Dep) %>% 
+  ungroup
+
+panel_reduced_OA <- panel_reduced_OA %>% select(Id, ym, MV.USD, RET.USD, OA)
+```
+
+### 2.5 Low Volatility
+
+#### 2.5.1 Beta_3
 
 ```{r}
 # We use the return of 6-month Treasury Bill as the risk free rate. 
@@ -78,18 +329,645 @@ panel_reduced[, Ex_RET.USD:=RET.USD-DTB6]
 panel_reduced[, MRP.USD:=MRET.USD-DTB6]
 panel_reduced <- setorderv(panel_reduced, c("ym"))
 
-# Create a function
+# Create a function to calculate beta and alpha
 coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
 
-coef_12 <- panel_reduced %>%
+# Create a function to calculate Sigma
+resid.fun <- . %>% as.data.frame %>% lm %>% .$residuals
+
+# calcuate Beta and alpha using 36-month data
+coef_36 <- panel_reduced %>%
   group_by(Id) %>%
   do(cbind(
            select(., ym, RET.USD),
            coef = select(., Ex_RET.USD, MRP.USD) %>%
-             rollapplyr(12, coef.fun, by.column = FALSE, fill = NA)
+             rollapplyr(36, coef.fun, by.column = FALSE, fill = NA)
            )) %>%
   ungroup
+
+# calcuate Sigma using 36-month data
+resid_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           resid = select(., Ex_RET.USD, MRP.USD) %>%
+             rollapplyr(36, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+
 ```
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_beta_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_beta_3[,.N,by=Id]
+panel_reduced_beta_3 <- panel_reduced_beta_3[count_table[N>12]$Id]
+
+panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(coef_36, by = c("Id", "ym"))
+
+names(panel_reduced_beta_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
+
+panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
+  select(Id, ym, MV.USD, RET.USD, Beta_3)
+```
+
+#### 2.5.2 Sigma_3
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sigma_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sigma_3[,.N,by=Id]
+panel_reduced_sigma_3<- panel_reduced_sigma_3[count_table[N>12]$Id]
+
+panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(resid_36, by = c("Id", "ym")) %>% 
+  select(Id, ym, MV.USD, RET.USD, `resid.36`)
+
+names(panel_reduced_sigma_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Sigma_3")
+
+panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
+  select(Id, ym, MV.USD, RET.USD, Sigma_3)
+```
+
+#### 2.5.3 SD
+
+```{r}
+#Monthly standard deviation
+panel_reduced_sd <- panel_reduced %>%
+  group_by(Id)%>%
+  mutate(SD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
+  ungroup %>% 
+  select(Id, ym, MV.USD, RET.USD, SD)
+```
+
+### 2.6 liquidity
+#### 2.6.1 T/O
+
+```{r}
+#Check the number of outstanding data
+trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- trad[,.N,by=Id]
+trad <- trad[count_table[N>12]$Id]
+```
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_TO[,.N,by=Id]
+panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
+
+#WC05651 Common Shares Traded - Annual #WC05301 Common Shares Outstanding
+panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
+panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
+panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
+
+panel_reduced_TO <- panel_reduced_TO %>% select(Id, ym, MV.USD, RET.USD, `T/O`)
+```
+
+### 2.7 Growth
+#### 2.7.1 EPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_eps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05202")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_eps[,.N,by=Id]
+panel_reduced_eps <- panel_reduced_eps[count_table[N>12]$Id]
+
+#WC05202 EPS, WC05508 SPS
+panel_reduced_eps <- panel_reduced_eps %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_EPS = shift(WC05202, n = 12)) %>%
+  mutate(Growth_Rate_EPS = (WC05202 - Lagged_EPS) / Lagged_EPS *100) %>% 
+  ungroup
+
+panel_reduced_eps <- panel_reduced_eps %>% 
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+
+names(panel_reduced_eps) <- c("Id","ym","MV.USD","RET.USD", "EPS")
+```
+
+#### 2.7.2 SPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "WC05508")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sps[,.N,by=Id]
+panel_reduced_sps <- panel_reduced_sps[count_table[N>12]$Id]
+
+#WC05508 SPS
+panel_reduced_sps <- panel_reduced_sps %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_SPS = shift(WC05508, n = 12)) %>%
+  mutate(Growth_Rate_SPS = (WC05508 - Lagged_SPS) / Lagged_SPS *100) %>% 
+  ungroup
+
+panel_reduced_sps <- panel_reduced_sps %>% 
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
+
+names(panel_reduced_sps) <- c("Id","ym","MV.USD","RET.USD", "SPS")
+```
+
+
+### 2.8 Momentum Variables
+
+#### 2.8.1 Momentum_12_2 using geometric mean
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_momentum <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_momentum[,.N,by=Id]
+panel_reduced_momentum <- panel_reduced_momentum[count_table[N>12]$Id]
+
+# Define a function to find the lagged value of return for a stock
+create_lag <- function(x, n) c(rep(NA, n), head(x, -n))
+
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_momentum[, Before2 := create_lag(RET.USD, 2), by = Id]
+panel_reduced_momentum[, Before3 := create_lag(RET.USD, 3), by = Id]
+panel_reduced_momentum[, Before4 := create_lag(RET.USD, 4), by = Id]
+panel_reduced_momentum[, Before5 := create_lag(RET.USD, 5), by = Id]
+panel_reduced_momentum[, Before6 := create_lag(RET.USD, 6), by = Id]
+panel_reduced_momentum[, Before7 := create_lag(RET.USD, 7), by = Id]
+panel_reduced_momentum[, Before8 := create_lag(RET.USD, 8), by = Id]
+panel_reduced_momentum[, Before9 := create_lag(RET.USD, 9), by = Id]
+panel_reduced_momentum[, Before10 := create_lag(RET.USD, 10), by = Id]
+panel_reduced_momentum[, Before11 := create_lag(RET.USD, 11), by = Id]
+panel_reduced_momentum[, Before12 := create_lag(RET.USD, 12), by = Id]
+
+# Momentum_12_2: Past performance of stocks: use geometric mean to calculate the compound return of a stock over the past twelve months, but ignores the previous month
+panel_reduced_momentum <- panel_reduced_momentum[,Mom_12_2:=((100+Before2)*(100+Before3)*(100+Before4)*(100+Before5)*(100+Before6)*(100+Before7)*(100+Before8)*(100+Before9)*(100+Before10)*(100+Before11)*(100+Before12))^(1/10)-100]
+
+
+panel_reduced_momentum <- panel_reduced_momentum %>%
+  select(Id, ym, MV.USD, RET.USD, Mom_12_2)
+
+```
+
+#### 2.8.2 RSI
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_rsi <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_rsi[,.N,by=Id]
+panel_reduced_rsi <- panel_reduced_rsi[count_table[N>12]$Id]
+
+
+panel_reduced_rsi[, gain := ifelse(RET.USD>0, RET.USD, 0)]
+panel_reduced_rsi[, loss := ifelse(RET.USD<0, -RET.USD, 0)]
+
+panel_reduced_rsi[, average_gain := frollmean(gain, 12, align = "right"), by = Id]
+panel_reduced_rsi[, average_loss := frollmean(loss, 12, align = "right"), by = Id]
+panel_reduced_rsi[, RS := average_gain/average_loss]
+panel_reduced_rsi[, RSI := 100 - (100/(1+RS))]
+
+panel_reduced_rsi <- panel_reduced_rsi %>% 
+  select(Id, ym, MV.USD, RET.USD, RSI)
+```
+
+#### 2.8.3 Historical Alpha
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_alpha_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_alpha_3[,.N,by=Id]
+panel_reduced_alpha_3 <- panel_reduced_alpha_3[count_table[N>12]$Id]
+
+panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
+  select(Id, ym, MV.USD) %>% 
+  full_join(coef_36, by = c("Id", "ym"))
+
+names(panel_reduced_alpha_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
+
+panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
+  select(Id, ym, MV.USD, RET.USD, Alpha_3)
+```
+
+
+
+### 2.9 Others 
+#### 2.9.1 MV
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_MV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_MV[,.N,by=Id]
+panel_reduced_MV <- panel_reduced_MV[count_table[N>12]$Id]
+
+panel_reduced_MV <- panel_reduced_MV %>% 
+  mutate(MV = MV.USD)
+```
+
+#### 2.9.2 AG
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_inv<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_inv[,.N,by=Id]
+panel_reduced_inv <- panel_reduced_inv[count_table[N>12]$Id]
+
+#WC02999 Total Assets
+panel_reduced_inv <- panel_reduced_inv %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_Asset = shift(WC02999, n = 12)) %>%
+  mutate(Lagged_2_Asset = shift(Lagged_Asset, n = 12)) %>%
+  mutate(AG = (Lagged_Asset - Lagged_2_Asset) / Lagged_Asset *100) %>% 
+  ungroup
+
+panel_reduced_inv <- panel_reduced_inv %>% 
+  select(Id, ym, MV.USD, RET.USD, AG)
+```
+
+#### 2.9.3 NSI
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_NSI<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "NOSH", "AF")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_NSI[,.N,by=Id]
+panel_reduced_NSI <- panel_reduced_NSI[count_table[N>12]$Id]
+
+#NSI: Net stock issues. Following Pontiff and Woodgate (2008), we measure net stock issues as the difference in the natural logs of split-adjusted shares outstanding in June of year y and year y − 1. Split-adjusted shares outstanding are calculated as shares outstanding (Datastream item NOSH) divided by the adjustment factor (Datastream item AF). We update this variable each June to make it comparable to the yearly updated asset growth variable.
+
+panel_reduced_NSI[,Sprit_Share := NOSH/AF]
+panel_reduced_NSI[,Lagged_Sprit_Share := shift(Sprit_Share, n = 12), by = "Id"]
+panel_reduced_NSI[, NSI_m := log(Sprit_Share/Lagged_Sprit_Share)]
+
+panel_reduced_NSI[,year:=substr(ym,1,4)]
+panel_reduced_NSI[,month:=substr(ym,6,7)]
+
+panel_reduced_NSI[,lag_5 := shift(NSI_m,-1), by = "Id"]
+panel_reduced_NSI[,lag_4:=shift(NSI_m,-2), by = "Id"]
+panel_reduced_NSI[,lag_3:=shift(NSI_m,-3), by = "Id"]
+panel_reduced_NSI[,lag_2:=shift(NSI_m,-4), by = "Id"]
+panel_reduced_NSI[,lag_1:=shift(NSI_m,-5), by = "Id"]
+panel_reduced_NSI[,lag_12:=shift(NSI_m,-6), by = "Id"]
+panel_reduced_NSI[,lag_11:=shift(NSI_m,-7), by = "Id"]
+panel_reduced_NSI[,lag_10:=shift(NSI_m,-8), by = "Id"]
+panel_reduced_NSI[,lag_9:=shift(NSI_m,-9), by = "Id"]
+panel_reduced_NSI[,lag_8:=shift(NSI_m,-10), by = "Id"]
+panel_reduced_NSI[,lag_7:=shift(NSI_m,-11), by = "Id"]
+
+panel_reduced_NSI[,NSI:=0]
+panel_reduced_NSI[month==6, NSI:=NSI_m, by = "Id"]
+panel_reduced_NSI[month==5, NSI:=lag_5, by = "Id"]
+panel_reduced_NSI[month==4, NSI:=lag_4, by = "Id"]
+panel_reduced_NSI[month==3, NSI:=lag_3, by = "Id"]
+panel_reduced_NSI[month==2, NSI:=lag_2, by = "Id"]
+panel_reduced_NSI[month==1, NSI:=lag_1, by = "Id"]
+panel_reduced_NSI[month==12, NSI:=lag_12, by = "Id"]
+panel_reduced_NSI[month==11, NSI:=lag_11, by = "Id"]
+panel_reduced_NSI[month==10, NSI:=lag_10, by = "Id"]
+panel_reduced_NSI[month==9, NSI:=lag_9, by = "Id"]
+panel_reduced_NSI[month==8, NSI:=lag_8, by = "Id"]
+panel_reduced_NSI[month==7, NSI:=lag_7, by = "Id"]
+
+panel_reduced_NSI <- panel_reduced_NSI %>% 
+  select(Id, ym, MV.USD, RET.USD, `NSI`)
+```
+
+
+#### 2.9.4 CEI
+```{r, warning=0}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_CEI<- panel_country[!is.na(RET.USD),c("Id","ym","year","month","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_CEI[,.N,by=Id]
+panel_reduced_CEI <- panel_reduced_CEI[count_table[N>12]$Id]
+
+#CEI: Composite equity issuance. Similar to Daniel and Titman (2006), composite equity issuance is defined as the growth rate in the market capitalization not attributable to the total stock return R: log(MCy/MCy−1) − R(y−1,y). For the portfolio formation at the end of June of year y, R(y−1,y) is the cumulative log return (calculated via the total return index, Datastream item RI) from June of year y − 1 to June of year y and MCy is the market capitalization (Datastream item MV) from June of year y. Equity issuance such as stock issues, stock option plans, and share-based compensations and acquisitions increase the composite equity issuance, whereas share repurchases or cash dividends reduce the composite equity issuance. We apply a one-year lookback window and also update this variable only each June to make it comparable to the yearly updated asset growth and net stock issuance variables.
+
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_MV = shift(MV.USD, n = 12))%>% 
+  mutate(Log_MC = log(MV.USD/Lagged_MV)) %>%
+  mutate(Log_MC = ifelse(is.nan(Log_MC), 0, Log_MC)) %>% 
+  mutate(Log_RET = log(RET.USD+1)) %>% 
+  mutate(Log_RET = ifelse(is.nan(Log_RET), 0, Log_RET)) %>% 
+  ungroup
+
+
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  group_by(Id) %>% 
+  mutate(Before1 := shift(Log_RET, n = 1)) %>%
+  mutate(Before2 := shift(Log_RET, n = 2)) %>% 
+  mutate(Before3 := shift(Log_RET, n = 3)) %>% 
+  mutate(Before4 := shift(Log_RET, n = 4)) %>% 
+  mutate(Before5 := shift(Log_RET, n = 5)) %>% 
+  mutate(Before6 := shift(Log_RET, n = 6)) %>% 
+  mutate(Before7 := shift(Log_RET, n = 7)) %>% 
+  mutate(Before8 := shift(Log_RET, n = 8)) %>% 
+  mutate(Before9 := shift(Log_RET, n = 9)) %>% 
+  mutate(Before10 := shift(Log_RET, n =10)) %>% 
+  mutate(Before11 := shift(Log_RET, n = 11)) %>% 
+  mutate(Before12 := shift(Log_RET, n = 12)) %>% 
+  mutate(Cum_Log_RET = Before1 +Before2 + Before3 + Before4 + Before5 +Before6 + Before7 +Before8 +Before9 + Before10 +Before11 +Before12) %>% 
+  mutate(CEI_m = Log_MC - Cum_Log_RET) %>% 
+  ungroup
+  
+
+
+#panel_reduced_CEI[, year := substr(ym,1,4)]
+#panel_reduced_CEI[, month := substr(ym,6,7)]
+
+panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
+
+panel_reduced_CEI[,lag_5 := shift(CEI_m,-1), by = "Id"]
+panel_reduced_CEI[,lag_4:=shift(CEI_m,-2), by = "Id"]
+panel_reduced_CEI[,lag_3:=shift(CEI_m,-3), by = "Id"]
+panel_reduced_CEI[,lag_2:=shift(CEI_m,-4), by = "Id"]
+panel_reduced_CEI[,lag_1:=shift(CEI_m,-5), by = "Id"]
+panel_reduced_CEI[,lag_12:=shift(CEI_m,-6), by = "Id"]
+panel_reduced_CEI[,lag_11:=shift(CEI_m,-7), by = "Id"]
+panel_reduced_CEI[,lag_10:=shift(CEI_m,-8), by = "Id"]
+panel_reduced_CEI[,lag_9:=shift(CEI_m,-9), by = "Id"]
+panel_reduced_CEI[,lag_8:=shift(CEI_m,-10), by = "Id"]
+panel_reduced_CEI[,lag_7:=shift(CEI_m,-11), by = "Id"]
+
+panel_reduced_CEI[,CEI:=0]
+panel_reduced_CEI[month==6, CEI:=CEI_m, by = "Id"]
+panel_reduced_CEI[month==5, CEI:=lag_5, by = "Id"]
+panel_reduced_CEI[month==4, CEI:=lag_4, by = "Id"]
+panel_reduced_CEI[month==3, CEI:=lag_3, by = "Id"]
+panel_reduced_CEI[month==2, CEI:=lag_2, by = "Id"]
+panel_reduced_CEI[month==1, CEI:=lag_1, by = "Id"]
+panel_reduced_CEI[month==12, CEI:=lag_12, by = "Id"]
+panel_reduced_CEI[month==11, CEI:=lag_11, by = "Id"]
+panel_reduced_CEI[month==10, CEI:=lag_10, by = "Id"]
+panel_reduced_CEI[month==9, CEI:=lag_9, by = "Id"]
+panel_reduced_CEI[month==8, CEI:=lag_8, by = "Id"]
+panel_reduced_CEI[month==7, CEI:=lag_7, by = "Id"]
+
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  select(Id, ym, MV.USD, RET.USD, `CEI`)
+```
+
+
+#### 2.9.5 I/A
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_IA<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02301","WC02101","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_IA[,.N,by=Id]
+panel_reduced_IA <- panel_reduced_IA[count_table[N>12]$Id]
+
+#Investment-to-assets. As in Lyandres et al. (2008), we measure investment-to-assets in June of year y as the change in gross property, plant, and equipment (WC02301) plus the annual change in inventories (WC02101) (both from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1) all divided by total assets (WC02999) of year y − 2.
+panel_reduced_IA <- panel_reduced_IA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_gross = shift(WC02301, n = 12)) %>%
+  mutate(Lagged_2_gross = shift(Lagged_gross, n = 12)) %>%
+  mutate(Lagged_inve = shift(WC02101, n = 12)) %>%
+  mutate(Lagged_2_inve = shift(Lagged_inve, n = 12)) %>%
+   mutate(Lagged_Asset = shift(WC02999, n = 24)) %>%
+  mutate(`I/A` = (Lagged_gross -Lagged_2_gross + Lagged_inve - Lagged_2_inve) / Lagged_Asset) %>% 
+  ungroup
+
+panel_reduced_IA <- panel_reduced_IA %>% 
+  select(Id, ym, MV.USD, RET.USD, `I/A`)
+```
+
+
+## 3. Double Sort
+
+### 3.1 Double Sort Dataset Preparation
+
+```{r}
+# Adding the Market risk premium variable
+# Merging panel_country with DTB6_monthly (risk free rate) 
+panel_reduced_MRP <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym","year","month", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+
+Double_Sort_Set <- panel_reduced_MRP %>% 
+  full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
+  select(Id, ym, year, month, RET.USD, Beta_3)%>%
+  full_join(panel_reduced_MV, by = c("Id", "ym", "RET.USD")) %>% 
+  select(Id, ym, year, month, RET.USD, Beta_3)%>% 
+  full_join(panel_reduced_val, by = c("Id", "ym","RET.USD"))%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`)%>% 
+  full_join(panel_reduced_ROE, by = c("Id", "ym","RET.USD"))%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE)%>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym","RET.USD"))%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym","RET.USD"))%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
+
+
+Double_Sort_Set[,hcjun := ifelse(month>=7,year,year-1)]
+Double_Sort_Set <- Double_Sort_Set[complete.cases(Double_Sort_Set$MV.USD)]
+setorder(Double_Sort_Set,ym,-MV.USD)
+
+Double_Sort_Set_copy <- Double_Sort_Set
+```
+
+### 3.2 SMB and HML
+```{r}
+# determine size portfolio allocation from July on using data that's public from end-of-June on
+
+# Double_Sort_Set <- Double_Sort_Set[complete.cases(Double_Sort_Set)]
+
+hlpvariable_size <-  Double_Sort_Set[month==7 & !is.na(MV.USD),
+                                .(pf.size = ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),Id),
+                                by=year]
+
+# Merge the size portfolio allocation back from July Y to June Y+1
+Double_Sort_Set_1_addSize <- merge(Double_Sort_Set,hlpvariable_size,
+                       by.x=c("hcjun","Id"),
+                       by.y=c("year","Id"))
+
+
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_bm <- Double_Sort_Set_1_addSize[month==7 & !is.na(`B/M`) & pf.size=="Big", 
+                                .(bm_bb30 = quantile(`B/M` , probs = c(0.3), na.rm=T),
+                                  bm_bb70 = quantile(`B/M` , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_2_addBM <- merge(Double_Sort_Set_1_addSize,hlpvariable_bm,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_2_addBM[ , pf.bm := ifelse(`B/M`>bm_bb70,"High",ifelse((`B/M`<=bm_bb70 & `B/M`>bm_bb30),"Neutral",ifelse(`B/M`<=bm_bb30,"Low",NA)))]
+
+Double_Sort_Set_2_addBM[, SIZE_VALUE := paste0(pf.size,".",pf.bm)] 
+
+
+portfolio_returns_HML <- Double_Sort_Set_2_addBM[!is.na(pf.size) & !is.na(pf.bm)] %>%
+  group_by(ym,SIZE_VALUE) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_VALUE,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.High + Small.Neutral + Small.Low)/3, # just exemplary
+    Big = (Big.High + Big.Neutral + Big.Low)/3,
+    SMB = Small-Big,
+    High = (Small.High + Big.High)/2,
+    Low = (Small.Low + Big.Low)/2,
+    HML = High-Low
+  )
+
+portfolio_returns_HML <- as.data.table(portfolio_returns_HML)
+portfolio_returns_HML[,t.test(HML)]
+
+```
+
+### 3.3 SMB and RMW
+
+```{r}
+# Determine the ROE breakpoints based on big stocks only
+hlpvariable_roe <- Double_Sort_Set_2_addBM[month==7 & !is.na(ROE) & pf.size=="Big", 
+                                .(roe_bb30 = quantile(ROE , probs = c(0.3), na.rm=T),
+                                  roe_bb70 = quantile(ROE , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_3_addROE <- merge(Double_Sort_Set_2_addBM,hlpvariable_roe,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_3_addROE[ , pf.roe := ifelse(ROE>roe_bb70,"Robust",ifelse((ROE<=roe_bb70 & ROE>roe_bb30),"Neutral",ifelse(ROE<=roe_bb30,"Weak",NA)))]
+
+Double_Sort_Set_3_addROE[, SIZE_PROFITALIIBITY := paste0(pf.size,".",pf.roe)] 
+
+portfolio_returns_RMW <- Double_Sort_Set_3_addROE[!is.na(pf.size) & !is.na(pf.roe)] %>%
+  group_by(ym,SIZE_PROFITALIIBITY) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_PROFITALIIBITY,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Robust + Small.Neutral + Small.Weak)/3, # just exemplary
+    Big = (Big.Robust + Big.Neutral + Big.Weak)/3,
+    SMB = Small-Big,
+    Robust = (Small.Robust + Big.Robust)/2,
+    Weak = (Small.Weak + Big.Weak)/2,
+    RMW = Robust-Weak
+  )
+
+portfolio_returns_RMW <- as.data.table(portfolio_returns_RMW)
+portfolio_returns_RMW[,t.test(RMW)]
+
+
+```
+
+
+### 3.4 SMB and CMA
+
+```{r}
+# Determine the AG breakpoints based on big stocks only
+hlpvariable_ag <- Double_Sort_Set_3_addROE[month==7 & !is.na(AG) & pf.size=="Big", 
+                                .(ag_bb30 = quantile(AG , probs = c(0.3), na.rm=T),
+                                  ag_bb70 = quantile(AG , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_4_addAG <- merge(Double_Sort_Set_3_addROE,hlpvariable_ag,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_4_addAG[ , pf.ag := ifelse(AG>ag_bb70,"Aggresive",ifelse((AG<=ag_bb70 & AG>ag_bb30),"Neutral",ifelse(AG<=ag_bb30,"Conservative",NA)))]
+
+Double_Sort_Set_4_addAG[, SIZE_INVESTMENT := paste0(pf.size,".",pf.ag)] 
+
+portfolio_returns_CMA <- Double_Sort_Set_4_addAG[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_INVESTMENT) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_INVESTMENT,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Conservative + Small.Neutral + Small.Aggresive)/3, # just exemplary
+    Big = (Big.Conservative + Big.Neutral + Big.Aggresive)/3,
+    SMB = Small-Big,
+    Conservative = (Small.Conservative + Big.Conservative)/2,
+    Aggresive = (Small.Aggresive + Big.Aggresive)/2,
+    CMA = Conservative-Aggresive
+  )
+
+portfolio_returns_CMA <- as.data.table(portfolio_returns_CMA)
+
+portfolio_returns_CMA[,t.test(CMA)]
+```
+
+
+
+### 3.5 SMB and WML
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- Double_Sort_Set_4_addAG[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_5_addMOM <- merge(Double_Sort_Set_4_addAG,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_5_addMOM[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+Double_Sort_Set_5_addMOM[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- Double_Sort_Set_5_addMOM[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
+    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    SMB = Small-Big,
+    Winner = (Small.Winner + Big.Winner)/2,
+    Loser = (Small.Loser + Big.Loser)/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(WML)]
+```
+
+### 3.6 SMB: Take the average
+```{r}
+portfolio_returns_SMB <- data.table(ym=portfolio_returns_HML$ym,
+                                    SMB_hml= portfolio_returns_HML$SMB,
+                                    SMB_rmw= portfolio_returns_RMW$SMB,
+                                    SMB_cma= portfolio_returns_CMA$SMB,
+                                    SMB_wml= portfolio_returns_WML$SMB)
+
+portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SMB_wml)/4]
+
+portfolio_returns_SMB[,t.test(SMB)]
+```
+
+## 4. Univariate Sort
+
+
+
+
+
+
 
 
 

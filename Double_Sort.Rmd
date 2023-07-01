@@ -20,10 +20,6 @@ library("tidyverse")
 # Load the data
 load("~/Desktop/Empirical Asset Pricing/Repo/Factor_data_ff5_Double.RData")
 
-Factor_data_ff5_Double <- Factor_data_ff5_Double[complete.cases(`B/M`)]
-
-
-
 Factor_data_ff5_Double <- as.data.table(Factor_data_ff5_Double)
 Factor_data_ff5_Double[,month:=as.numeric(substr(ym,6,7))]
 Factor_data_ff5_Double[,year:=as.numeric(substr(ym,1,4))]
