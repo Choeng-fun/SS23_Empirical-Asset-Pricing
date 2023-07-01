@@ -51,9 +51,19 @@ panel_country[,month_new:=NULL]
 
 
 
-
 ```{r}
 save(panel_country,file="panel_country_June30.RData")
 ```
 
+
+```{r}
+DTB6_monthly[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
+DTB6_monthly[month %in% 10:12, month_new:=month] 
+DTB6_monthly$ym <- paste(DTB6_monthly$year,DTB6_monthly$month_new,sep = ".")
+DTB6_monthly[,month_new:=NULL]
+```
+
+```{r}
+save(DTB6_monthly,file="DTB6_monthly_July01.RData")
+```
 
