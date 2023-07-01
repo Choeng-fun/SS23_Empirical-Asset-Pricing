@@ -764,6 +764,10 @@ panel_reduced_IA <- panel_reduced_IA %>%
 # Merging panel_country with DTB6_monthly (risk free rate) 
 panel_reduced_MRP <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym","year","month", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
 
+panel_reduced_MRP[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+panel_reduced_MRP[, ExRET.USD:=RET.USD-DTB6]
+panel_reduced_MRP[, MRP.USD:=MRET.USD-DTB6]
+
 Double_Sort_Set <- panel_reduced_MRP %>% 
   full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
   select(Id, ym, year, month, RET.USD, Beta_3)%>%
@@ -961,7 +965,196 @@ portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SM
 portfolio_returns_SMB[,t.test(SMB)]
 ```
 
-## 4. Univariate Sort
+## 4. Univariate Sort (Equally Weighted)
+
+### 4.1 Univariate Sort Dataset Preparation
+
+```{r}
+Univariate_Sort_Set <- panel_reduced_MRP %>% 
+  full_join(panel_reduced_val, by = c("Id", "ym", "RET.USD","MV.USD")) %>% 
+  full_join(panel_reduced_lnMV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_rsi, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  full_join(panel_reduced_alpha_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_yield ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROE ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROA ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_beta_3 ,by = c("Id", "ym", "MV.USD", "RET.USD"))  %>% 
+  full_join(panel_reduced_sigma_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sd, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_TO, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_eps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_MV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_GPA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OPBE, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NOA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NSI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_CEI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_IA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_3, Mom_12_2, DY, ROE, ROA, Beta_3, Sigma_3, SD, `T/O`, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
+```
+
+
+### 4.2 Value
+#### 4.2.1 B/M
+```{r}
+# Order stocks based on the B/M, divide them into 10 deciles, and filter the 1st and 10th decile.
+Univariate_Sort_Set_BM <- Univariate_Sort_Set[!is.na(`B/M`),c("Id","ym","MV.USD","RET.USD","B/M")]
+setorder(Univariate_Sort_Set_BM,ym,`B/M`) 
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[, Decile := ntile(`B/M`, 10), by = ym]
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_BM <- Univariate_Sort_Set_BM %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_B/M` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
+
+#### 4.2.2 B/Mm
+```{r}
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set[!is.na(`B/Mm`),c("Id","ym","MV.USD","RET.USD","B/Mm")]
+setorder(Univariate_Sort_Set_BMm,ym,`B/Mm`) 
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[, Decile := ntile(`B/Mm`, 10), by = ym]
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_BMm <- Univariate_Sort_Set_BMm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/Mm` = `10`-`1`)
+
+portfolio_returns_BMm <- as.data.table(portfolio_returns_BMm)
+portfolio_returns_BMm[,t.test(`Ret_B/Mm`)]
+```
+#### 4.2.3 E/P
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_EP <- Univariate_Sort_Set[!is.na(`E/P`),c("Id","ym","MV.USD","RET.USD","E/P")]
+panel_reduced_EP <- panel_reduced_EP[`E/P` > 0]
+setorder(panel_reduced_EP,ym,`E/P`) 
+panel_reduced_EP <- panel_reduced_EP[, Decile := ntile(`E/P`, 10), by = ym]
+panel_reduced_EP <- panel_reduced_EP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_EP <- panel_reduced_EP %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_E/P` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_EP <- as.data.table(portfolio_returns_EP)
+portfolio_returns_EP[,t.test(`Ret_E/P`)]
+```
+### E/Pm
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_EPm <- Univariate_Sort_Set[!is.na(`E/Pm`),c("Id","ym","MV.USD","RET.USD","E/Pm")]
+panel_reduced_EPm <- panel_reduced_EPm[`E/Pm` > 0]
+setorder(panel_reduced_EPm,ym,`E/Pm`) 
+panel_reduced_EPm <- panel_reduced_EPm[, Decile := ntile(`E/Pm`, 10), by = ym]
+panel_reduced_EPm <- panel_reduced_EPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_EPm <- panel_reduced_EPm %>%
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_E/Pm` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_EPm <- as.data.table(portfolio_returns_EPm)
+portfolio_returns_EPm[,t.test(`Ret_E/Pm`)]
+```
+### C/P
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_CP <- Univariate_Sort_Set[!is.na(`C/P`),c("Id","ym","MV.USD","RET.USD","C/P")]
+panel_reduced_CP <- panel_reduced_CP[`C/P` > 0]
+setorder(panel_reduced_CP,ym,`C/P`) 
+panel_reduced_CP <- panel_reduced_CP[, Decile := ntile(`C/P`, 10), by = ym]
+panel_reduced_CP <- panel_reduced_CP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_CP <- panel_reduced_CP %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_C/P` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_CP <- as.data.table(portfolio_returns_CP)
+portfolio_returns_CP[,t.test(`Ret_C/P`)]
+```
+### C/Pm
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_CPm <- Univariate_Sort_Set[!is.na(`C/Pm`),c("Id","ym","MV.USD","RET.USD","C/Pm")]
+panel_reduced_CPm <- panel_reduced_CPm[`C/Pm` > 0]
+setorder(panel_reduced_CPm,ym,`C/Pm`) 
+panel_reduced_CPm <- panel_reduced_CPm[, Decile := ntile(`C/Pm`, 10), by = ym]
+panel_reduced_CPm <- panel_reduced_CPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_CPm <- panel_reduced_CPm %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_C/Pm` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_CPm <- as.data.table(portfolio_returns_CPm)
+portfolio_returns_CPm[,t.test(`Ret_C/Pm`)]
+```
+### EBITDA/EV
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_EE <- Univariate_Sort_Set[!is.na(`EBITDA/EV`),c("Id","ym","MV.USD","RET.USD","EBITDA/EV")]
+panel_reduced_EE <- panel_reduced_EE[`EBITDA/EV` > 0]
+setorder(panel_reduced_EE,ym,`EBITDA/EV`) 
+panel_reduced_EE <- panel_reduced_EE[, Decile := ntile(`EBITDA/EV`, 10), by = ym]
+panel_reduced_EE <- panel_reduced_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_EE <- panel_reduced_EE %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_EBITDA/EV` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_EE <- as.data.table(portfolio_returns_EE)
+portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
+```
 
 
 
