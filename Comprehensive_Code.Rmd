@@ -15,6 +15,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(data.table)
+library(tidyr)
+library(tidyverse)
+library(rollRegres)
+library(roll)
+library(zoo)
 ```
 
 
@@ -40,6 +45,10 @@ WS_yearly[,c("country","Stock"):=NULL]
 WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
 
 panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
+panel_country[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
+panel_country[month %in% 10:12, month_new:=month] 
+panel_country$ym <- paste(panel_country$year,panel_country$month_new,sep = ".")
+panel_country[,month_new:=NULL]
 ```
 
 ```{r}
@@ -48,8 +57,38 @@ panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y =
 
 ## 2. Variable Creation
 
-```{r}
+### 2.1 Alpha and Beta
+#### 2.1.1 Coef
 
+```{r}
+# We use the return of 6-month Treasury Bill as the risk free rate. 
+# The data is downloaded from https://fred.stlouisfed.org/series/DTB6
+load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly.RData")
+
+# merging panel_country with DTB6_monthly(risk free rate) 
+panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+
+# Create the market return as the market-capitaliation-weighted average of the return of all stocks for every month
+panel_reduced[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+
+# Excess Return of individual stocks
+panel_reduced[, Ex_RET.USD:=RET.USD-DTB6]
+
+# Market Risk Premium (MRP)
+panel_reduced[, MRP.USD:=MRET.USD-DTB6]
+panel_reduced <- setorderv(panel_reduced, c("ym"))
+
+# Create a function
+coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
+
+coef_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., Ex_RET.USD, MRP.USD) %>%
+             rollapplyr(12, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
 ```
 
 
