@@ -1,0 +1,97 @@
+---
+title: "Comprehensive_Code"
+author: "Yuru Chen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## 0. Library
+
+```{r}
+library(data.table)
+library(tidyr)
+library(tidyverse)
+library(rollRegres)
+library(roll)
+library(zoo)
+```
+
+
+## 1. Merge the Three Original Dataset into One
+
+```{r}
+# Load the 3 original dataset
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
+```
+
+```{r}
+DS_monthly <- as.data.table(DS.monthly)
+WS_yearly <- as.data.table(WS.yearly)
+
+DS_monthly[,month:=month(Date)]
+DS_monthly[,year:=year(Date)]
+DS_monthly[,hcdec:=ifelse(month >= 7, year-1, year-2)]
+DS_monthly[, c("country","Date"):=NULL]
+DS_monthly <- DS_monthly[,c(1,19,18,2,20,3:17)]
+
+WS_yearly[,c("country","Stock"):=NULL]
+WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
+
+panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
+panel_country[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
+panel_country[month %in% 10:12, month_new:=month] 
+panel_country$ym <- paste(panel_country$year,panel_country$month_new,sep = ".")
+panel_country[,month_new:=NULL]
+```
+
+```{r}
+# save(panel_country,file="panel_country_June30.RData")
+```
+
+## 2. Variable Creation
+
+### 2.1 Alpha and Beta
+#### 2.1.1 Coef
+
+```{r}
+# We use the return of 6-month Treasury Bill as the risk free rate. 
+# The data is downloaded from https://fred.stlouisfed.org/series/DTB6
+load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly.RData")
+
+# merging panel_country with DTB6_monthly(risk free rate) 
+panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+
+# Create the market return as the market-capitaliation-weighted average of the return of all stocks for every month
+panel_reduced[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+
+# Excess Return of individual stocks
+panel_reduced[, Ex_RET.USD:=RET.USD-DTB6]
+
+# Market Risk Premium (MRP)
+panel_reduced[, MRP.USD:=MRET.USD-DTB6]
+panel_reduced <- setorderv(panel_reduced, c("ym"))
+
+# Create a function
+coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
+
+coef_12 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           select(., ym, RET.USD),
+           coef = select(., Ex_RET.USD, MRP.USD) %>%
+             rollapplyr(12, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+```
+
+
+
+
+
