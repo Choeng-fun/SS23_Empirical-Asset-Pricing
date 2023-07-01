@@ -764,6 +764,10 @@ panel_reduced_IA <- panel_reduced_IA %>%
 # Merging panel_country with DTB6_monthly (risk free rate) 
 panel_reduced_MRP <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym","year","month", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
 
+panel_reduced_MRP[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+panel_reduced_MRP[, ExRET.USD:=RET.USD-DTB6]
+panel_reduced_MRP[, MRP.USD:=MRET.USD-DTB6]
+
 Double_Sort_Set <- panel_reduced_MRP %>% 
   full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
   select(Id, ym, year, month, RET.USD, Beta_3)%>%
@@ -832,9 +836,344 @@ portfolio_returns_HML <- Double_Sort_Set_2_addBM[!is.na(pf.size) & !is.na(pf.bm)
   )
 
 portfolio_returns_HML <- as.data.table(portfolio_returns_HML)
-
 portfolio_returns_HML[,t.test(HML)]
 
 ```
+
+### 3.3 SMB and RMW
+
+```{r}
+# Determine the ROE breakpoints based on big stocks only
+hlpvariable_roe <- Double_Sort_Set_2_addBM[month==7 & !is.na(ROE) & pf.size=="Big", 
+                                .(roe_bb30 = quantile(ROE , probs = c(0.3), na.rm=T),
+                                  roe_bb70 = quantile(ROE , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_3_addROE <- merge(Double_Sort_Set_2_addBM,hlpvariable_roe,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_3_addROE[ , pf.roe := ifelse(ROE>roe_bb70,"Robust",ifelse((ROE<=roe_bb70 & ROE>roe_bb30),"Neutral",ifelse(ROE<=roe_bb30,"Weak",NA)))]
+
+Double_Sort_Set_3_addROE[, SIZE_PROFITALIIBITY := paste0(pf.size,".",pf.roe)] 
+
+portfolio_returns_RMW <- Double_Sort_Set_3_addROE[!is.na(pf.size) & !is.na(pf.roe)] %>%
+  group_by(ym,SIZE_PROFITALIIBITY) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_PROFITALIIBITY,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Robust + Small.Neutral + Small.Weak)/3, # just exemplary
+    Big = (Big.Robust + Big.Neutral + Big.Weak)/3,
+    SMB = Small-Big,
+    Robust = (Small.Robust + Big.Robust)/2,
+    Weak = (Small.Weak + Big.Weak)/2,
+    RMW = Robust-Weak
+  )
+
+portfolio_returns_RMW <- as.data.table(portfolio_returns_RMW)
+portfolio_returns_RMW[,t.test(RMW)]
+
+
+```
+
+
+### 3.4 SMB and CMA
+
+```{r}
+# Determine the AG breakpoints based on big stocks only
+hlpvariable_ag <- Double_Sort_Set_3_addROE[month==7 & !is.na(AG) & pf.size=="Big", 
+                                .(ag_bb30 = quantile(AG , probs = c(0.3), na.rm=T),
+                                  ag_bb70 = quantile(AG , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_4_addAG <- merge(Double_Sort_Set_3_addROE,hlpvariable_ag,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_4_addAG[ , pf.ag := ifelse(AG>ag_bb70,"Aggresive",ifelse((AG<=ag_bb70 & AG>ag_bb30),"Neutral",ifelse(AG<=ag_bb30,"Conservative",NA)))]
+
+Double_Sort_Set_4_addAG[, SIZE_INVESTMENT := paste0(pf.size,".",pf.ag)] 
+
+portfolio_returns_CMA <- Double_Sort_Set_4_addAG[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_INVESTMENT) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_INVESTMENT,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Conservative + Small.Neutral + Small.Aggresive)/3, # just exemplary
+    Big = (Big.Conservative + Big.Neutral + Big.Aggresive)/3,
+    SMB = Small-Big,
+    Conservative = (Small.Conservative + Big.Conservative)/2,
+    Aggresive = (Small.Aggresive + Big.Aggresive)/2,
+    CMA = Conservative-Aggresive
+  )
+
+portfolio_returns_CMA <- as.data.table(portfolio_returns_CMA)
+
+portfolio_returns_CMA[,t.test(CMA)]
+```
+
+
+
+### 3.5 SMB and WML
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- Double_Sort_Set_4_addAG[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_5_addMOM <- merge(Double_Sort_Set_4_addAG,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_5_addMOM[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+Double_Sort_Set_5_addMOM[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- Double_Sort_Set_5_addMOM[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>% # do "everything" for the groups specified here
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>% # create one column for each group
+  mutate(
+    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
+    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    SMB = Small-Big,
+    Winner = (Small.Winner + Big.Winner)/2,
+    Loser = (Small.Loser + Big.Loser)/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(WML)]
+```
+
+### 3.6 SMB: Take the average
+```{r}
+portfolio_returns_SMB <- data.table(ym=portfolio_returns_HML$ym,
+                                    SMB_hml= portfolio_returns_HML$SMB,
+                                    SMB_rmw= portfolio_returns_RMW$SMB,
+                                    SMB_cma= portfolio_returns_CMA$SMB,
+                                    SMB_wml= portfolio_returns_WML$SMB)
+
+portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SMB_wml)/4]
+
+portfolio_returns_SMB[,t.test(SMB)]
+```
+
+## 4. Univariate Sort (Equally Weighted)
+
+### 4.1 Univariate Sort Dataset Preparation
+
+```{r}
+Univariate_Sort_Set <- panel_reduced_MRP %>% 
+  full_join(panel_reduced_val, by = c("Id", "ym", "RET.USD","MV.USD")) %>% 
+  full_join(panel_reduced_lnMV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_rsi, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  full_join(panel_reduced_alpha_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_yield ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROE ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROA ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_beta_3 ,by = c("Id", "ym", "MV.USD", "RET.USD"))  %>% 
+  full_join(panel_reduced_sigma_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sd, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_TO, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_eps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_MV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_GPA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OPBE, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NOA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NSI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_CEI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_IA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_3, Mom_12_2, DY, ROE, ROA, Beta_3, Sigma_3, SD, `T/O`, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
+```
+
+
+### 4.2 Value
+#### 4.2.1 B/M
+```{r}
+# Order stocks based on the B/M, divide them into 10 deciles, and filter the 1st and 10th decile.
+Univariate_Sort_Set_BM <- Univariate_Sort_Set[!is.na(`B/M`),c("Id","ym","MV.USD","RET.USD","B/M")]
+setorder(Univariate_Sort_Set_BM,ym,`B/M`) 
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[, Decile := ntile(`B/M`, 10), by = ym]
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_BM <- Univariate_Sort_Set_BM %>% 
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_B/M` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
+
+#### 4.2.2 B/Mm
+```{r}
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set[!is.na(`B/Mm`),c("Id","ym","MV.USD","RET.USD","B/Mm")]
+setorder(Univariate_Sort_Set_BMm,ym,`B/Mm`) 
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[, Decile := ntile(`B/Mm`, 10), by = ym]
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_BMm <- Univariate_Sort_Set_BMm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/Mm` = `10`-`1`)
+
+portfolio_returns_BMm <- as.data.table(portfolio_returns_BMm)
+portfolio_returns_BMm[,t.test(`Ret_B/Mm`)]
+```
+#### 4.2.3 E/P
+```{r}
+Univariate_Sort_Set_EP <- Univariate_Sort_Set[!is.na(`E/P`),c("Id","ym","MV.USD","RET.USD","E/P")]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[`E/P` > 0]
+setorder(Univariate_Sort_Set_EP,ym,`E/P`) 
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[, Decile := ntile(`E/P`, 10), by = ym]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EP <- Univariate_Sort_Set_EP %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/P` = `10`-`1`)
+
+portfolio_returns_EP <- as.data.table(portfolio_returns_EP)
+portfolio_returns_EP[,t.test(`Ret_E/P`)]
+```
+#### 4.2.4 E/Pm
+```{r}
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set[!is.na(`E/Pm`),c("Id","ym","MV.USD","RET.USD","E/Pm")]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[`E/Pm` > 0]
+setorder(Univariate_Sort_Set_EPm,ym,`E/Pm`) 
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[, Decile := ntile(`E/Pm`, 10), by = ym]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EPm <- Univariate_Sort_Set_EPm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/Pm` = `10`-`1`)
+
+portfolio_returns_EPm <- as.data.table(portfolio_returns_EPm)
+portfolio_returns_EPm[,t.test(`Ret_E/Pm`)]
+```
+#### 4.2.5 C/P
+```{r}
+Univariate_Sort_Set_CP <- Univariate_Sort_Set[!is.na(`C/P`),c("Id","ym","MV.USD","RET.USD","C/P")]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[`C/P` > 0]
+setorder(Univariate_Sort_Set_CP,ym,`C/P`) 
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[, Decile := ntile(`C/P`, 10), by = ym]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_CP <- Univariate_Sort_Set_CP %>% 
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_C/P` = `10`-`1`)
+
+portfolio_returns_CP <- as.data.table(portfolio_returns_CP)
+portfolio_returns_CP[,t.test(`Ret_C/P`)]
+```
+
+#### 4.2.6 C/Pm
+```{r}
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set[!is.na(`C/Pm`),c("Id","ym","MV.USD","RET.USD","C/Pm")]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[`C/Pm` > 0]
+setorder(Univariate_Sort_Set_CPm,ym,`C/Pm`) 
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[, Decile := ntile(`C/Pm`, 10), by = ym]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_CPm <- Univariate_Sort_Set_CPm %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_C/Pm` = `10`-`1`)
+
+portfolio_returns_CPm <- as.data.table(portfolio_returns_CPm)
+portfolio_returns_CPm[,t.test(`Ret_C/Pm`)]
+```
+
+#### 4.2.7 EBITDA/EV
+```{r}
+Univariate_Sort_Set_EE <- Univariate_Sort_Set[!is.na(`EBITDA/EV`),c("Id","ym","MV.USD","RET.USD","EBITDA/EV")]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[`EBITDA/EV` > 0]
+setorder(Univariate_Sort_Set_EE,ym,`EBITDA/EV`) 
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[, Decile := ntile(`EBITDA/EV`, 10), by = ym]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EE <- Univariate_Sort_Set_EE %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_EBITDA/EV` = `10`-`1`)
+
+portfolio_returns_EE <- as.data.table(portfolio_returns_EE)
+portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
+```
+
+
+### 4.3 Size 
+#### 4.3.1 Log_MV
+```{r}
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set[!is.na(Log_MV),c("Id","ym","MV.USD","RET.USD","Log_MV")]
+setorder(Univariate_Sort_Set_lnMV,ym,Log_MV) 
+panel_reduced_lnMV <- panel_reduced_lnMV[, Decile := ntile(Log_MV, 10), by = ym]
+panel_reduced_lnMV <- panel_reduced_lnMV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_lnMV <- panel_reduced_lnMV %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Log_MV` = `10`-`1`)
+
+portfolio_returns_lnMV <- as.data.table(portfolio_returns_lnMV)
+portfolio_returns_lnMV[,t.test(`Ret_Log_MV`)]
+```
+
+### MV
+```{r}
+# Order stocks based on the past performance, divide them into 10 deciles, and filter the 1st and 10th decile.
+panel_reduced_MV <- Univariate_Sort_Set[!is.na(MV),c("Id","ym","MV.USD","RET.USD","MV")]
+setorder(panel_reduced_MV,ym,MV) 
+panel_reduced_MV <- panel_reduced_MV[, Decile := ntile(MV, 10), by = ym]
+panel_reduced_MV <- panel_reduced_MV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+```{r}
+# Long the high profitability (stocks in the 10th decile), short the low profitability(stocks in the 1st decile), and get the momentum return
+portfolio_returns_MV <- panel_reduced_MV %>%
+  group_by(ym,Decile)%>% # do "everything" for the groups specified here
+  summarize(ret.port = mean(RET.USD)) %>% # calculate mean return for each group
+  spread(Decile,ret.port) %>% # create one column for each group
+  mutate(`Ret_MV` = `10`-`1`)
+```
+
+```{r}
+# Test if the momentum return is significantly different from 0
+portfolio_returns_MV <- as.data.table(portfolio_returns_MV)
+portfolio_returns_MV[,t.test(`Ret_MV`)]
+```
+
+
+
+
+
+
+
+
+
 
 
