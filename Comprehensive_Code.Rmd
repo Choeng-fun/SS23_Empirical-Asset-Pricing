@@ -683,58 +683,14 @@ panel_reduced_CEI <- panel_reduced_CEI %>%
   mutate(Before11 := shift(Log_RET, n = 11)) %>% 
   mutate(Before12 := shift(Log_RET, n = 12)) %>% 
   mutate(Cum_Log_RET = Before1 +Before2 + Before3 + Before4 + Before5 +Before6 + Before7 +Before8 +Before9 + Before10 +Before11 +Before12) %>% 
-  mutate(CEI_m = Log_MC - Cum_Log_RET) %>% 
-<<<<<<< HEAD
-    mutate(lag_1:=lag(CEI_m), CEI_a=ifelse((month==6 | is.na(lag_1)), CEI_m, NA)) %>% 
+  mutate(CEI_m = Log_MC - Cum_Log_RET) %>%
+  mutate(lag_1:=lag(CEI_m), CEI_a=ifelse((month==6 | is.na(lag_1)), CEI_m, NA)) %>%
   ungroup
 
 panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
 
 panel_reduced_CEI <- panel_reduced_CEI[, CEI:= na.locf(CEI_a, na.rm=FALSE)]
-=======
-  # TODO: REVIEW NEW CODE
-    mutate(lag_1:=lag(CEI_m), CEI_a=ifelse((month==6 | is.na(lag_1)), CEI_m, NA)) %>% 
-  # ===END OF NEW CODE===
-  ungroup
 
-
-#panel_reduced_CEI[, year := substr(ym,1,4)]
-#panel_reduced_CEI[, month := substr(ym,6,7)]
-
-panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
-
-# TODO: Remove this part:
-# panel_reduced_CEI[,lag_5 := shift(CEI_m,-1), by = "Id"]
-# panel_reduced_CEI[,lag_4:=shift(CEI_m,-2), by = "Id"]
-# panel_reduced_CEI[,lag_3:=shift(CEI_m,-3), by = "Id"]
-# panel_reduced_CEI[,lag_2:=shift(CEI_m,-4), by = "Id"]
-# panel_reduced_CEI[,lag_1:=shift(CEI_m,-5), by = "Id"]
-# panel_reduced_CEI[,lag_12:=shift(CEI_m,-6), by = "Id"]
-# panel_reduced_CEI[,lag_11:=shift(CEI_m,-7), by = "Id"]
-# panel_reduced_CEI[,lag_10:=shift(CEI_m,-8), by = "Id"]
-# panel_reduced_CEI[,lag_9:=shift(CEI_m,-9), by = "Id"]
-# panel_reduced_CEI[,lag_8:=shift(CEI_m,-10), by = "Id"]
-# panel_reduced_CEI[,lag_7:=shift(CEI_m,-11), by = "Id"]
-# 
-# panel_reduced_CEI[,CEI:=0]
-# panel_reduced_CEI[month==6, CEI:=CEI_m, by = "Id"]
-# panel_reduced_CEI[month==5, CEI:=lag_5, by = "Id"]
-# panel_reduced_CEI[month==4, CEI:=lag_4, by = "Id"]
-# panel_reduced_CEI[month==3, CEI:=lag_3, by = "Id"]
-# panel_reduced_CEI[month==2, CEI:=lag_2, by = "Id"]
-# panel_reduced_CEI[month==1, CEI:=lag_1, by = "Id"]
-# panel_reduced_CEI[month==12, CEI:=lag_12, by = "Id"]
-# panel_reduced_CEI[month==11, CEI:=lag_11, by = "Id"]
-# panel_reduced_CEI[month==10, CEI:=lag_10, by = "Id"]
-# panel_reduced_CEI[month==9, CEI:=lag_9, by = "Id"]
-# panel_reduced_CEI[month==8, CEI:=lag_8, by = "Id"]
-# panel_reduced_CEI[month==7, CEI:=lag_7, by = "Id"]
-# ===END===
-
-# TODO: REVIEW NEW CODE
-panel_reduced_CEI <- panel_reduced_CEI[, CEI:= na.locf(CEI_a, na.rm=FALSE)]
-# ===END OF NEW CODE===
->>>>>>> cd5ba4188540edb34f4a1d4a952c4197565a3ab3
 
 panel_reduced_CEI <- panel_reduced_CEI %>%
   select(Id, ym, MV.USD, RET.USD, `CEI`)
