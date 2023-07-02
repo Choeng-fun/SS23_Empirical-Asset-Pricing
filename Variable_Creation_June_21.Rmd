@@ -24,8 +24,8 @@ library(zoo)
 ```
 
 ```{r}
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/panel_country_June29.RData")
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/panel_country_June30.RData")
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/DTB6_monthly_July01.RData")
 panel_country <- as.data.table(panel_country)
 ```
 
@@ -660,7 +660,7 @@ panel_reduced_sigma_5 <- panel_reduced_sigma_5 %>%
 #Monthly standard deviation
 panel_reduced_sd <- panel_reduced %>%
   group_by(Id)%>%
-  mutate(SD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
+  mutate(SD=rollapply(RET.USD,36,sd,align='right',fill=NA)) %>%
   ungroup %>% 
   select(Id, ym, MV.USD, RET.USD, SD)
 ```
@@ -1046,7 +1046,3 @@ save(Factor_data_MSCI, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Ad
 
 
 
-
-```{r}
-save(DTB6_monthly, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly_June_29.RData")
-```
