@@ -731,8 +731,8 @@ panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
 panel_reduced_CEI <- panel_reduced_CEI[, CEI:= na.locf(CEI_a, na.rm=FALSE)]
 # END OF NEW CODE
 
-# panel_reduced_CEI <- panel_reduced_CEI %>% 
-#   select(Id, ym, MV.USD, RET.USD, `CEI`)
+panel_reduced_CEI <- panel_reduced_CEI %>%
+  select(Id, ym, MV.USD, RET.USD, `CEI`)
 ```
 
 
