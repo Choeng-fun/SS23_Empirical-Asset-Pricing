@@ -21,16 +21,16 @@ library(janitor)
 ```{r}
 load("../Factor_data_FF5_FM.RData")
 Factor_data_ff5_FM <- as.data.table(Factor_data_ff5_FM)
-
-# panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
-Factor_data_ff5_FM <- Factor_data_ff5_FM[, -c("CEI")]
-panel_reduced_CEI <- panel_reduced_CEI[, c("Id", "ym", "CEI")]
-Factor_data_ff5_FM <- merge(Factor_data_ff5_FM, panel_reduced_CEI)
-
-# panel_reduced_val <- as.data.table(panel_reduced_val)
-Factor_data_ff5_FM <- Factor_data_ff5_FM[, -c("B/M", "B/Mm")]
-panel_reduced_val <- panel_reduced_val[, c("Id", "ym", "B/M", "B/Mm")]
-Factor_data_ff5_FM <- merge(Factor_data_ff5_FM, panel_reduced_val, by=c("Id", "ym"))
+# 
+# # panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
+# Factor_data_ff5_FM <- Factor_data_ff5_FM[, -c("CEI")]
+# panel_reduced_CEI <- panel_reduced_CEI[, c("Id", "ym", "CEI")]
+# Factor_data_ff5_FM <- merge(Factor_data_ff5_FM, panel_reduced_CEI)
+# 
+# # panel_reduced_val <- as.data.table(panel_reduced_val)
+# Factor_data_ff5_FM <- Factor_data_ff5_FM[, -c("B/M", "B/Mm")]
+# panel_reduced_val <- panel_reduced_val[, c("Id", "ym", "B/M", "B/Mm")]
+# Factor_data_ff5_FM <- merge(Factor_data_ff5_FM, panel_reduced_val, by=c("Id", "ym"))
 ```
 
 ```{r}
@@ -222,21 +222,21 @@ panel_e[,t.test(gamma_mom)]
 ```
 
 ```{r}
-panel_f <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`E/Pm`) & !is.infinite(`E/Pm`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(NSI) & !is.infinite(NSI) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
-                                            .(gamma_zero=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[1],
-                                              gamma_beta=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[2],
-                                              gamma_epm=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[3],
-                                              gamma_noa=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[4],
-                                              gamma_ag=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[5],
-                                              gamma_nsi=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[6],
-                                              gamma_mv=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[7],
-                                              gamma_mom=lm(Ex_RET.USD~Beta_3+`E/Pm`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[8])
+panel_f <- Factor_data_ff5_FM[!is.na(Beta_3) & !is.infinite(Beta_3) & !is.na(`B/M`) & !is.infinite(`E/P`) & !is.na(NOA) & !is.infinite(NOA) & !is.na(AG) & !is.infinite(AG) & !is.na(NSI) & !is.infinite(NSI) & !is.na(MV) & !is.infinite(MV) & !is.na(Mom_12_2) & !is.infinite(Mom_12_2),
+                                            .(gamma_zero=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[1],
+                                              gamma_beta=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[2],
+                                              gamma_bm=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[3],
+                                              gamma_noa=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[4],
+                                              gamma_ag=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[5],
+                                              gamma_nsi=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[6],
+                                              gamma_mv=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[7],
+                                              gamma_mom=lm(Ex_RET.USD~Beta_3+`B/M`+NOA+AG+NSI+MV+Mom_12_2)$coefficient[8])
                               ,by=ym]
 
 
 panel_f[,t.test(gamma_zero)]
 panel_f[,t.test(gamma_beta)]
-panel_f[,t.test(gamma_epm)]
+panel_f[,t.test(gamma_bm)]
 panel_f[,t.test(gamma_noa)]
 panel_f[,t.test(gamma_ag)]
 panel_f[,t.test(gamma_nsi)]
