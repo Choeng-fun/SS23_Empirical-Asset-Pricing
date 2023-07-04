@@ -964,16 +964,9 @@ Univariate_Sort_Set <- panel_reduced_MRP %>%
 ```
 
 ```{r}
-Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM %>% 
-  group_by(ym) %>%
-  arrange(-MV.USD) %>%
-  mutate(size=ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big")) %>%
-  filter(size=="Big") %>% 
-  ungroup() %>% 
-  select(Id,ym,MV.USD,RET.USD,`B/M`)
-
-Univariate_Sort_Set_BM <- as.data.table(Univariate_Sort_Set_BM)
+save(Univariate_Sort_Set, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Univariate_Sort_Set.RData")
 ```
+
 
 ### 4.2 Value
 #### 4.2.1 B/M
@@ -1161,12 +1154,6 @@ portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
 ```{r}
 Univariate_Sort_Set_lnMV <- Univariate_Sort_Set[!is.na(Log_MV)&!is.infinite(Log_MV),c("Id","ym","MV.USD","RET.USD","Log_MV")]
 
-setorder(Univariate_Sort_Set_lnMV,ym,-MV.USD) 
-
-Univariate_Sort_Set_lnMV <-  Univariate_Sort_Set_lnMV[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
-
-Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[size=="Big"]
-
 setorder(Univariate_Sort_Set_lnMV,ym,Log_MV) 
 Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[, Decile := ntile(Log_MV, 10), by = ym]
 Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
@@ -1185,11 +1172,6 @@ portfolio_returns_lnMV[,t.test(`Ret_Log_MV`)]
 ```{r}
 Univariate_Sort_Set_MV <- Univariate_Sort_Set[!is.na(MV)&!is.infinite(MV),c("Id","ym","MV.USD","RET.USD","MV")]
 
-setorder(Univariate_Sort_Set_MV,ym,-MV.USD) 
-
-Univariate_Sort_Set_MV <-  Univariate_Sort_Set_MV[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
-
-Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[size=="Big"]
 
 setorder(Univariate_Sort_Set_MV,ym,MV) 
 Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[, Decile := ntile(MV, 10), by = ym]
@@ -1900,12 +1882,6 @@ portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
 ```{r}
 Univariate_Sort_Set_lnMV <- Univariate_Sort_Set[!is.na(Log_MV)&!is.infinite(Log_MV),c("Id","ym","MV.USD","RET.USD","Log_MV")]
 
-setorder(Univariate_Sort_Set_lnMV,ym,-MV.USD) 
-
-Univariate_Sort_Set_lnMV <-  Univariate_Sort_Set_lnMV[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
-
-Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[size=="Big"]
-
 
 setorder(Univariate_Sort_Set_lnMV,ym,Log_MV) 
 Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[, Decile := ntile(Log_MV, 10), by = ym]
@@ -1925,11 +1901,6 @@ portfolio_returns_lnMV[,t.test(`Ret_Log_MV`)]
 ```{r}
 Univariate_Sort_Set_MV <- Univariate_Sort_Set[!is.na(MV)&!is.infinite(MV),c("Id","ym","MV.USD","RET.USD","MV")]
 
-setorder(Univariate_Sort_Set_MV,ym,-MV.USD) 
-
-Univariate_Sort_Set_MV <-  Univariate_Sort_Set_MV[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
-
-Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[size=="Big"]
 
 setorder(Univariate_Sort_Set_MV,ym,MV) 
 Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[, Decile := ntile(MV, 10), by = ym]
