@@ -120,11 +120,6 @@ panel_i
 ```
 
 ```{r}
-panel_j <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "B/M", "E/Pm", "OP/BE", "ROE", "AG", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
-panel_j
-```
-
-```{r}
 panel_k1 <- fm(Univariate_Sort_Set_big, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
 panel_k1
 ```
