@@ -1,0 +1,132 @@
+---
+title: "Hanauer's Method"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Fama and Macbeth Regression
+
+```{r}
+library(data.table)
+library(tidyr)
+library(zoo)
+library(dplyr)
+library(janitor)
+```
+
+```{r}
+load("../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+```
+
+```{r}
+ALL_FACTORS = c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Log_MV", "Mom_12_2", "Alpha_3", "RSI")
+```
+
+```{r}
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+```{r}
+results_lm <- function(data, x, y="ExRET.USD") {
+  fm <- as.formula(paste(y, "~", paste(paste0("`", x, "`"), collapse = "+")))
+  lm(fm, data = data)$coefficient
+}
+
+fm_reg <- function(data, x, y="ExRET.USD", group=c("ym")) {
+  cols <- c(group, y, x)
+  result <- data %>%
+    select(all_of(cols)) %>%
+    drop_na() %>%
+    filter_all(all_vars(!is.infinite(.))) %>%
+    group_by(across(all_of(group))) %>%
+    reframe(
+      coef=rbind(results_lm(pick(everything()), x))
+    ) %>%
+    ungroup() %>%
+    select(-all_of(group))
+  result <- as.data.table(result)
+}
+
+fm <- function(data, factor) {
+  reg_result <- fm_reg(data, factor)
+  test_result <- sapply(reg_result, t.test)
+  test_result <- test_result[c("estimate", "p.value"), -1]
+  # print(test_result)
+  colnames(test_result) <- factor
+  test_result
+}
+```
+
+```{r}
+panel_a <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
+panel_a
+```
+
+```{r}
+panel_b <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV"))
+panel_b
+```
+
+```{r}
+panel_c <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_c
+```
+
+```{r}
+panel_d1 <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d1
+```
+
+```{r}
+panel_d2 <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d2
+```
+
+```{r}
+panel_e <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "MV", "Mom_12_2"))
+panel_e
+```
+
+```{r}
+panel_f <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Mom_12_2"))
+panel_f
+```
+
+```{r}
+panel_g <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "CEI", "MV", "Log_MV", "Mom_12_2"))
+panel_g
+```
+
+```{r}
+panel_h <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
+panel_h
+```
+
+```{r}
+panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_i
+```
+
+```{r}
+panel_k1 <- fm(Univariate_Sort_Set_big, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
+panel_k1
+```
+
+```{r}
+panel_k2 <- fm(Univariate_Sort_Set_big, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_k2
+```
+
+### Factor: Sigma_3, ROE, CEI, Alpha_3, RSI
