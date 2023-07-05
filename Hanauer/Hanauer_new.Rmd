@@ -8,7 +8,7 @@ date: "`r Sys.Date()`"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Fama and Macbeth regression
+## Fama and Macbeth Regression
 
 ```{r}
 library(data.table)
@@ -130,6 +130,8 @@ panel_k1
 ```
 
 ```{r}
-panel_k3 <- fm(Univariate_Sort_Set_big, c("Sigma_3", "E/Pm", "ROE", "CEI", "Log_MV", "Alpha_3", "RSI"))
-panel_k3
+panel_k2 <- fm(Univariate_Sort_Set_big, c("Sigma_3", "E/Pm", "ROE", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_k2
 ```
+
+### Factor: Sigma_3, ROE, CEI, Alpha_3, RSI
