@@ -69,6 +69,8 @@ fm <- function(data, factor) {
 }
 ```
 
+## Big and Small Stocks (Excl. Micro)
+
 ```{r}
 panel_a <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
 panel_a
@@ -119,6 +121,8 @@ panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", 
 panel_i
 ```
 
+## Big Stocks
+
 ```{r}
 panel_k1 <- fm(Univariate_Sort_Set_big, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
 panel_k1
@@ -129,4 +133,4 @@ panel_k2 <- fm(Univariate_Sort_Set_big, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_
 panel_k2
 ```
 
-### Factor: Sigma_3, ROE, CEI, Alpha_3, RSI
+## Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
