@@ -29,7 +29,8 @@ Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
 
 ```{r}
 coef_cross_sectional_new <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
-                                            .(gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
+                                            .(intercept=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
                                               gamma.bmm=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[3],
                                               gamma.cei=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[4],
                                               gamma.logmv=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[5],
