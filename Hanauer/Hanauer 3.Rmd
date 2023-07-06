@@ -158,4 +158,21 @@ coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coe
 save(coef_cross_sectional_avg, file="Coef_cross_sectional_avg.RData")
 ```
 
+```{r}
+# merge with firm characteristics
+data_set <- Univariate_Sort_Set_big_small %>% 
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, CEI, Log_MV, Alpha_3, RSI)
+
+lewellen_data_set <- merge(x=data_set, y=coef_cross_sectional_avg, by.x = c("ym"), by.y = c("ym"), all= 1)
+
+lewellen_expected_return_mean36 <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = mean36.coef.Sigma_3 * Sigma_3 + `mean36.coef.B/Mm` * `B/Mm` + mean36.coef.CEI * CEI + mean36.coef.Log_MV * Log_MV + mean36.coef.Alpha_3 * Alpha_3 + mean36.coef.RSI * RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = cummean.coef.Sigma_3 * Sigma_3 + `cummean.coef.B/Mm` * `B/Mm` + cummean.coef.CEI * CEI + cummean.coef.Log_MV * Log_MV + cummean.coef.Alpha_3 * Alpha_3 + cummean.coef.RSI * RSI) %>% 
+    ungroup
+```
 
