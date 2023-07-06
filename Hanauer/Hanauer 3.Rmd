@@ -54,18 +54,24 @@ fm_reg <- function(data, x, y="ExRET.USD", group=c("ym")) {
     reframe(
       coef=rbind(results_lm(pick(everything()), x))
     ) %>%
-    ungroup() %>%
-    select(-all_of(group))
+    ungroup()
   result <- as.data.table(result)
 }
 
-fm <- function(data, factor) {
-  reg_result <- fm_reg(data, factor)
-  test_result <- sapply(reg_result, t.test)
+fm <- function(data, factor, y="ExRET.USD", group=c("ym"), reg_coef=FALSE) {
+  reg_result <- fm_reg(data, factor, y, group)
+  reg_result_only_value <- reg_result %>% select(-all_of(group))
+  test_result <- sapply(reg_result_only_value, t.test)
   test_result <- test_result[c("estimate", "p.value"), -1]
-  # print(test_result)
   colnames(test_result) <- factor
-  test_result
+  if (reg_coef) {
+    names_coef <- c(group, "intercept", paste0("coef.", factor))
+    colnames(reg_result) <- names_coef
+    result <- list("test" = test_result, "reg" = reg_result)
+    return(result)
+  } else {
+    return(test_result)
+  }
 }
 ```
 
@@ -115,10 +121,16 @@ panel_g
 panel_h <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
 panel_h
 ```
-
 ```{r}
 panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
 panel_i
+```
+
+```{r}
+result_final <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI"), reg_coef = TRUE)
+panel_j <- result_final$test
+coef_cross_sectional <- result_final$reg
+panel_j
 ```
 
 ## Big Stocks
@@ -134,3 +146,16 @@ panel_k2
 ```
 
 ## Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
+
+```{r}
+factor <- c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI")
+cols <- paste0("coef.", factor)
+coef_cross_sectional_avg <- cbind(coef_cross_sectional, mean36 = rollmeanr(coef_cross_sectional[, ..cols], 36, fill = NA))
+coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coef_cross_sectional[, ..cols]) / seq_along(coef_cross_sectional[, ym]))
+```
+
+```{r}
+save(coef_cross_sectional_avg, file="Factor_coef.RData")
+```
+
+
