@@ -28,7 +28,7 @@ Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
 ```
 
 ```{r}
-coef_cross_sectional_rename <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+coef_cross_sectional_new <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
                                             .(gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
                                               gamma.bmm=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[3],
                                               gamma.cei=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[4],
@@ -40,10 +40,13 @@ coef_cross_sectional_rename <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !
 
 ```{r}
 cols <- colnames(coef_cross_sectional_rename[, -1])
-setorder(coef_cross_sectional_rename, ym)
-coef_cross_sectional_rename_avg <- cbind(coef_cross_sectional_rename, mean36 = rollmeanr(coef_cross_sectional_rename[, ..cols], 36, fill = NA))
-coef_cross_sectional_rename_avg <- cbind(coef_cross_sectional_rename_avg, cummean = cumsum(coef_cross_sectional_rename[, ..cols]) / seq_along(coef_cross_sectional[, ym]))
+setorder(coef_cross_sectional_new, ym)
+data_lewellen <- cbind(coef_cross_sectional_new, mean36 = rollmeanr(coef_cross_sectional_new[, ..cols], 36, fill = NA))
+data_lewellen <- cbind(data_lewellen, cummean = cumsum(coef_cross_sectional_new[, ..cols]) / seq_along(data_lewellen[, ym]))
 ```
+
+```{r}
+save(data_lewellen, file="Data_Lewellen.RData")
 ```
 
 
