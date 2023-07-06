@@ -8,6 +8,18 @@ editor_options:
     wrap: 72
 ---
 
+
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_WS_yearly.RData")
+```
+
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly_July01.RData")
+```
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
