@@ -121,6 +121,7 @@ panel_g
 panel_h <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
 panel_h
 ```
+
 ```{r}
 panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
 panel_i
@@ -195,9 +196,8 @@ lewellen_expected_return_cummean <- lewellen_data_set %>%
     ungroup
 ```
 
-
-
 ##Returns based on mean36
+
 ```{r}
 lewellen_expected_return_mean36 <- data.table(lewellen_expected_return_mean36)
 
@@ -209,6 +209,7 @@ lewellen_expected_return_mean36 <- lewellen_expected_return_mean36[!is.na(MV.USD
 ```
 
 ### Equal Mean
+
 ```{r}
 # Long the 10th decile, short the 1st decile and get the return
 portfolio_returns_mean36_equal <- lewellen_expected_return_mean36 %>% 
@@ -221,7 +222,9 @@ portfolio_returns_mean36_equal <- lewellen_expected_return_mean36 %>%
 portfolio_returns_mean36_equal <- as.data.table(portfolio_returns_mean36_equal)
 portfolio_returns_mean36_equal[,t.test(`Ret_mean36`)]
 ```
+
 ### Value Weighted Mean
+
 ```{r}
 # Long the 10th decile, short the 1st decile and get the return
 portfolio_returns_mean36_val <- lewellen_expected_return_mean36 %>% 
@@ -235,8 +238,8 @@ portfolio_returns_mean36_val <- as.data.table(portfolio_returns_mean36_val)
 portfolio_returns_mean36_val[,t.test(`Ret_mean36`)]
 ```
 
-
 ## Returns based on Cummean
+
 ```{r}
 lewellen_expected_return_cummean <- data.table(lewellen_expected_return_cummean)
 
@@ -248,6 +251,7 @@ lewellen_expected_return_cummean <- lewellen_expected_return_cummean[!is.na(MV.U
 ```
 
 ### Equal Mean
+
 ```{r}
 # Long the 10th decile, short the 1st decile and get the return
 portfolio_returns_cummean_equal <- lewellen_expected_return_cummean %>%
@@ -262,6 +266,7 @@ portfolio_returns_cummean_equal[,t.test(`Ret_cummean`)]
 ```
 
 ### Value Weighted Mean
+
 ```{r}
 # Long the 10th decile, short the 1st decile and get the return
 portfolio_returns_cummean_val <- lewellen_expected_return_cummean %>% 
@@ -274,8 +279,43 @@ portfolio_returns_cummean_val <- lewellen_expected_return_cummean %>%
 portfolio_returns_cummean_val <- as.data.table(portfolio_returns_cummean_val)
 portfolio_returns_cummean_val[,t.test(`Ret_mean36`)]
 ```
+
 ## regression based on expected return
+
 ```{r}
+clean_mean <- lewellen_expected_return_mean36 %>% 
+  select(Id,ym,RET.USD,ExRET.USD,Expected_Return_36)
+
+clean_mean <- data.table(clean_mean)
+
+
+
+reg_mean <- clean_mean[!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36),
+                       .(gamma_zero=lm(ExRET.USD~Expected_Return_36)$coefficient[1],
+gamma_beta=lm(ExRET.USD~Expected_Return_36)$coefficient[2]),   
+  by=ym]
+
+
+reg_mean[,t.test(gamma_zero)]
+reg_mean[,t.test(gamma_beta)]
+
+```
+```{r}
+clean_cum <- lewellen_expected_return_cummean %>% 
+  select(Id,ym,RET.USD,ExRET.USD,Expected_Return_cummean)
+
+clean_cum <- data.table(clean_cum)
+
+
+
+reg_cum <- clean_cum[!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean),
+                       .(gamma_zero=lm(ExRET.USD~Expected_Return_cummean)$coefficient[1],
+gamma_beta=lm(ExRET.USD~Expected_Return_cummean)$coefficient[2]),   
+  by=ym]
+
+
+reg_cum[,t.test(gamma_zero)]
+reg_cum[,t.test(gamma_beta)]
 
 ```
 
