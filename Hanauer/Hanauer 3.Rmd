@@ -155,7 +155,7 @@ coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coe
 ```
 
 ```{r}
-save(coef_cross_sectional_avg, file="Factor_coef.RData")
+save(coef_cross_sectional_avg, file="Coef_cross_sectional_avg.RData")
 ```
 
 
