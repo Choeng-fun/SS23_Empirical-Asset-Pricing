@@ -39,7 +39,7 @@ coef_cross_sectional_new <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.
 ```
 
 ```{r}
-cols <- colnames(coef_cross_sectional_rename[, -1])
+cols <- colnames(coef_cross_sectional_new[, -1])
 setorder(coef_cross_sectional_new, ym)
 data_lewellen <- cbind(coef_cross_sectional_new, mean36 = rollmeanr(coef_cross_sectional_new[, ..cols], 36, fill = NA))
 data_lewellen <- cbind(data_lewellen, cummean = cumsum(coef_cross_sectional_new[, ..cols]) / seq_along(data_lewellen[, ym]))
