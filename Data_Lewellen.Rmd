@@ -1,0 +1,49 @@
+---
+title: "Hanauer's Method"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Fama and Macbeth Regression
+
+```{r}
+library(data.table)
+library(tidyr)
+library(zoo)
+library(dplyr)
+```
+
+```{r}
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+```{r}
+coef_cross_sectional_rename <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.bmm=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.cei=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[4],
+                                              gamma.logmv=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[5],
+                                              gamma.alpha3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[6],
+                                              gamma.rsi=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[7])
+                              ,by=ym]
+```
+
+```{r}
+cols <- colnames(coef_cross_sectional_rename[, -1])
+setorder(coef_cross_sectional_rename, ym)
+coef_cross_sectional_rename_avg <- cbind(coef_cross_sectional_rename, mean36 = rollmeanr(coef_cross_sectional_rename[, ..cols], 36, fill = NA))
+coef_cross_sectional_rename_avg <- cbind(coef_cross_sectional_rename_avg, cummean = cumsum(coef_cross_sectional_rename[, ..cols]) / seq_along(coef_cross_sectional[, ym]))
+```
+```
+
+
