@@ -15,7 +15,7 @@ library(zoo)
 library(dplyr)
 ```
 
-#Lewellen Data
+#Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
 
 ```{r}
 load("../../Data/Data_Lewellen_6.RData")
@@ -25,7 +25,7 @@ data_lewellen_6 <- as.data.table(data_lewellen_6)
 ```{r}
 # merge with firm characteristics
 data_set <- Univariate_Sort_Set_big_small %>% 
-  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, NOA, CEI, Log_MV, Alpha_3, RSI)
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, CEI, Log_MV, Alpha_3, RSI)
 
 lewellen_data_set <- merge(x=data_set, y=data_lewellen_6, by.x = c("ym"), by.y = c("ym"), all= 1)
 
@@ -345,3 +345,86 @@ reg_cum_3[,t.test(gamma_zero)]
 reg_cum_3[,t.test(gamma_beta)]
 
 ```
+
+## 6 Factor
+### Select Top 20 stocks (6 factor)
+```{r}
+stock_20_6_mean36 <- lewellen_expected_return_mean36 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  slice(1:20) %>% 
+    ungroup
+
+stock_20_6_cum <- lewellen_expected_return_cummean %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  slice(1:20) %>% 
+  ungroup
+```
+
+
+### select Top 10th Decile stock (6 factor)
+```{r}
+stock_10_6_mean36 <- lewellen_expected_return_mean36 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  mutate(Decile = ntile(Expected_Return_36, 10)) %>% 
+  filter(Decile == 10) %>% 
+    ungroup
+
+stock_10_6_cum <- lewellen_expected_return_cummean %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  mutate(Decile = ntile(Expected_Return_cummean, 10)) %>% 
+  filter(Decile == 10) %>% 
+    ungroup
+```
+
+## 3 Factor
+### Select Top 20 stocks (3 factor)
+```{r}
+stock_20_3_mean36 <- lewellen_expected_return_mean36_3 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  slice(1:20) %>% 
+    ungroup
+
+stock_20_3_cum <- lewellen_expected_return_cummean_3 %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  slice(1:20) %>% 
+  ungroup
+```
+
+### select Top 10th Decile stock (3 factor)
+
+```{r}
+stock_10_3_mean36 <- lewellen_expected_return_mean36_3 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  mutate(Decile = ntile(Expected_Return_36, 10)) %>% 
+  filter(Decile == 10) %>% 
+    ungroup
+
+stock_10_3_cum <- lewellen_expected_return_cummean_3 %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  mutate(Decile = ntile(Expected_Return_cummean, 10)) %>% 
+  filter(Decile == 10) %>% 
+    ungroup
+```
+
+```{r}
+check_num <- stock_10_6_mean36 %>% 
+  group_by(ym) %>%
+  summarise(n =n())
+```
+
