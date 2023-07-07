@@ -25,7 +25,7 @@ data_lewellen_6 <- as.data.table(data_lewellen_6)
 ```{r}
 # merge with firm characteristics
 data_set <- Univariate_Sort_Set_big_small %>% 
-  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, CEI, Log_MV, Alpha_3, RSI)
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, NOA, CEI, Log_MV, Alpha_3, RSI)
 
 lewellen_data_set <- merge(x=data_set, y=data_lewellen_6, by.x = c("ym"), by.y = c("ym"), all= 1)
 
@@ -179,5 +179,169 @@ gamma_beta=lm(ExRET.USD~Expected_Return_cummean)$coefficient[2]),
 
 reg_cum[,t.test(gamma_zero)]
 reg_cum[,t.test(gamma_beta)]
+
+```
+
+
+
+## Selected Factors: Log_MV, Alpha_3, RSI
+
+```{r}
+load("../../Data/Data_Lewellen_3.RData")
+data_lewellen_3 <- as.data.table(data_lewellen_3)
+```
+
+```{r}
+# merge with firm characteristics
+data_set_3 <- Univariate_Sort_Set_big_small %>% 
+  select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Log_MV, Alpha_3, RSI)
+
+lewellen_data_set_3 <- merge(x=data_set_3, y=data_lewellen_3, by.x = c("ym"), by.y = c("ym"), all= 1)
+
+
+# Creating the lag variable of mean36 average slope
+lewellen_data_set_3[, Lag_mean36_Intercept := shift(mean36.intercept, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_Log_MV := shift(mean36.gamma.logmv, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_Alpha3 := shift(mean36.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_RSI := shift(mean36.gamma.rsi, n= 1), by = Id]
+
+# Creating the lag variable of cumulated average slope
+lewellen_data_set_3[, Lag_cum_Intercept := shift(cummean.intercept, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_Log_MV := shift(cummean.gamma.logmv, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_Alpha3 := shift(cummean.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_RSI := shift(cummean.gamma.rsi, n= 1), by = Id]
+
+lewellen_expected_return_mean36_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = Lag_mean36_Intercept * intercept +  Lag_mean36_Log_MV * Log_MV + Lag_mean36_Alpha3 * Alpha_3 + Lag_mean36_RSI * RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = Lag_cum_Intercept * intercept + Lag_cum_Log_MV * Log_MV + Lag_cum_Alpha3 * Alpha_3 + Lag_cum_RSI * RSI) %>% 
+    ungroup
+```
+
+##Returns based on mean36
+
+```{r}
+lewellen_expected_return_mean36_3 <- data.table(lewellen_expected_return_mean36_3)
+
+setorder(lewellen_expected_return_mean36_3,ym,Expected_Return_36)
+
+lewellen_expected_return_mean36_3 <- lewellen_expected_return_mean36_3[, Decile := ntile(Expected_Return_36, 10), by = ym]
+
+lewellen_expected_return_mean36_3 <- lewellen_expected_return_mean36_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+### Equal Mean
+
+```{r}
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_mean36_equal_3 <- lewellen_expected_return_mean36_3 %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_mean36` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_mean36_equal_3 <- as.data.table(portfolio_returns_mean36_equal_3)
+portfolio_returns_mean36_equal_3[,t.test(`Ret_mean36`)]
+```
+
+### Value Weighted Mean
+
+```{r}
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_mean36_val_3 <- lewellen_expected_return_mean36_3 %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_mean36` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_mean36_val_3 <- as.data.table(portfolio_returns_mean36_val_3)
+portfolio_returns_mean36_val_3[,t.test(`Ret_mean36`)]
+```
+
+## Returns based on Cummean
+
+```{r}
+lewellen_expected_return_cummean_3 <- data.table(lewellen_expected_return_cummean_3)
+
+setorder(lewellen_expected_return_cummean_3,ym,Expected_Return_cummean)
+
+lewellen_expected_return_cummean_3 <- lewellen_expected_return_cummean_3[, Decile := ntile(Expected_Return_cummean, 10), by = ym]
+
+lewellen_expected_return_cummean_3 <- lewellen_expected_return_cummean_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+```
+
+### Equal Mean
+
+```{r}
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_cummean_equal_3 <- lewellen_expected_return_cummean_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_cummean` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_cummean_equal_3 <- as.data.table(portfolio_returns_cummean_equal_3)
+portfolio_returns_cummean_equal_3[,t.test(`Ret_cummean`)]
+```
+
+### Value Weighted Mean
+
+```{r}
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_cummean_val_3 <- lewellen_expected_return_cummean_3 %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_mean36` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_cummean_val_3 <- as.data.table(portfolio_returns_cummean_val_3)
+portfolio_returns_cummean_val_3[,t.test(`Ret_mean36`)]
+```
+
+## regression based on expected return
+
+```{r}
+clean_mean_3 <- lewellen_expected_return_mean36_3 %>% 
+  select(Id,ym,RET.USD,ExRET.USD,Expected_Return_36)
+
+clean_mean_3 <- data.table(clean_mean_3)
+
+
+
+reg_mean_3 <- clean_mean_3[!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36),
+                       .(gamma_zero=lm(ExRET.USD~Expected_Return_36)$coefficient[1],
+gamma_beta=lm(ExRET.USD~Expected_Return_36)$coefficient[2]),   
+  by=ym]
+
+
+reg_mean_3[,t.test(gamma_zero)]
+reg_mean_3[,t.test(gamma_beta)]
+
+```
+
+```{r}
+clean_cum_3 <- lewellen_expected_return_cummean_3 %>% 
+  select(Id,ym,RET.USD,ExRET.USD,Expected_Return_cummean)
+
+clean_cum_3 <- data.table(clean_cum_3)
+
+
+
+reg_cum_3 <- clean_cum_3[!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean),
+                       .(gamma_zero=lm(ExRET.USD~Expected_Return_cummean)$coefficient[1],
+gamma_beta=lm(ExRET.USD~Expected_Return_cummean)$coefficient[2]),   
+  by=ym]
+
+
+reg_cum_3[,t.test(gamma_zero)]
+reg_cum_3[,t.test(gamma_beta)]
 
 ```
