@@ -21,6 +21,13 @@ library(rollRegres)
 library(roll)
 library(zoo)
 library(dplyr)
+
+library(vars)
+library(mFilter)
+library(tseries)
+library(TSstudio)
+library(forecast)
+library(tidyverse)
 ```
 
 
@@ -28,11 +35,9 @@ library(dplyr)
 
 ```{r}
 # Load the 3 original dataset
-# load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
-# load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
-```
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
 
-```{r}
 DS_monthly <- as.data.table(DS.monthly)
 WS_yearly <- as.data.table(WS.yearly)
 
@@ -2443,9 +2448,9 @@ setorder(stock_size, ym, -MV.USD)
 stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
 stock_big <- stock_big[big==1, c("Id", "ym")]
 Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
-stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
-stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
-Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+stock_NoMicro <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_NoMicro <- stock_NoMicro[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_NoMicro <- merge(stock_NoMicro, Univariate_Sort_Set)
 ```
 
 ### 6.2 Function Definition
@@ -2490,57 +2495,57 @@ fm <- function(data, factor, y="ExRET.USD", group=c("ym"), reg_coef=FALSE) {
 ### 6.3 Regression Using Big and Small Stocks (Excl. Micro)
 
 ```{r}
-panel_a <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
+panel_a <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
 panel_a
 ```
 
 ```{r}
-panel_b <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV"))
+panel_b <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV"))
 panel_b
 ```
 
 ```{r}
-panel_c <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_c <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV", "Mom_12_2"))
 panel_c
 ```
 
 ```{r}
-panel_d1 <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d1 <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "OP/BE", "AG", "MV", "Mom_12_2"))
 panel_d1
 ```
 
 ```{r}
-panel_d2 <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d2 <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "AG", "MV", "Mom_12_2"))
 panel_d2
 ```
 
 ```{r}
-panel_e <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "MV", "Mom_12_2"))
+panel_e <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "MV", "Mom_12_2"))
 panel_e
 ```
 
 ```{r}
-panel_f <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Mom_12_2"))
+panel_f <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Mom_12_2"))
 panel_f
 ```
 
 ```{r}
-panel_g <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "CEI", "MV", "Log_MV", "Mom_12_2"))
+panel_g <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "CEI", "MV", "Log_MV", "Mom_12_2"))
 panel_g
 ```
 
 ```{r}
-panel_h <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
+panel_h <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
 panel_h
 ```
 
 ```{r}
-panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_i <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
 panel_i
 ```
 
 ```{r}
-result_final <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI"), reg_coef = TRUE)
+result_final <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI"), reg_coef = TRUE)
 panel_j <- result_final$test
 coef_cross_sectional <- result_final$reg
 panel_j
@@ -2582,3 +2587,74 @@ coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coe
 
 
 ## 9. Vector Autoregressive (VAR)
+
+
+```{r}
+VAR_3_Set <- Univariate_Sort_Set_NoMicro[,c("Id","ym","RET.USD","Log_MV","Alpha_3","RSI")]
+
+#!is.na(Log_MV)&!is.na(Alpha_3)&!is.na(RSI)
+
+VAR_6_Set <- Univariate_Sort_Set_NoMicro[!is.na(Sigma_3)&!is.na(`B/Mm`)&!is.na(CEI)&!is.na(Log_MV)&!is.na(Alpha_3)&!is.na(RSI),c("Id","ym","RET.USD","Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI")]
+
+
+save(VAR_3_Set,file="VAR_3_Set.RData")
+save(VAR_6_Set,file="VAR_6_Set.RData")
+
+```
+
+```{r}
+load("VAR_3_Set.RData")
+load("VAR_6_Set.RData")
+
+
+example <- VAR_3_Set %>% filter(Id=="134982") %>% slice(1:36)
+example <- example[,Id:=NULL]
+example <- example[,ym:=NULL]
+#RET.USD <- ts(example$RET.USD, start = c(1998,7), frequency = 12)
+
+#ts_plot(RET.USD)
+#pp.test(RET.USD)
+
+#EstResult <- VAR(example, lag.max = 38, ic = "AIC", type = "const")
+
+#EstResult
+
+lagselect <- VARselect(example, lag.max = 10, type = "const")
+lagselect$selection
+
+Model1 <- VAR(example, p = 2, type = "const", season = NULL, exog = NULL) 
+summary(Model1)
+forecast <- predict(Model1, n.ahead = 5, ci = 0.95)
+fanchart(forecast, names = "RET.USD", main = "Fanchart for RET.USD", xlab = "Horizon", ylab = "Log_MV")
+forecast$fcst
+
+
+
+
+example_1 <- VAR_3_Set %>% filter(Id=="134982")
+example_1 <- example_1[,Id:=NULL]
+example_1 <- example_1[,ym:=NULL]
+
+
+Model1 <- VAR(example_1, p = 2, type = "const", season = NULL, exog = NULL) 
+
+forecast <- predict(Model1, n.ahead = 5, ci = 0.95)
+fanchart(forecast, names = "RET.USD", main = "Fanchart for RET.USD", xlab = "Horizon", ylab = "Log_MV")
+forecast$fcst
+
+
+
+
+
+
+
+```
+
+```{r}
+RET.USD
+```
+```{r}
+panel_1 <- panel_country[Id=="134982",1:7]
+```
+
+
