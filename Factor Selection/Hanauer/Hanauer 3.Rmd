@@ -121,6 +121,7 @@ panel_g
 panel_h <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
 panel_h
 ```
+
 ```{r}
 panel_i <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
 panel_i
@@ -148,14 +149,5 @@ panel_k2
 ## Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
 
 ```{r}
-factor <- c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI")
-cols <- paste0("coef.", factor)
-coef_cross_sectional_avg <- cbind(coef_cross_sectional, mean36 = rollmeanr(coef_cross_sectional[, ..cols], 36, fill = NA))
-coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coef_cross_sectional[, ..cols]) / seq_along(coef_cross_sectional[, ym]))
+load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data_Lewellen.RData")
 ```
-
-```{r}
-save(coef_cross_sectional_avg, file="Coef_cross_sectional_avg.RData")
-```
-
-

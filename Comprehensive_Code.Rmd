@@ -318,7 +318,7 @@ panel_reduced_OA <- panel_reduced_OA %>% select(Id, ym, MV.USD, RET.USD, OA)
 ```{r}
 # We use the return of 6-month Treasury Bill as the risk free rate. 
 # The data is downloaded from https://fred.stlouisfed.org/series/DTB6
-load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly.RData")
+#load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly.RData")
 
 # merging panel_country with DTB6_monthly(risk free rate) 
 panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))

@@ -130,3 +130,51 @@ panel_k2
 ```
 
 ### Factor: Sigma_3, ROE, CEI, Alpha_3, RSI
+
+```{r}
+cor(Univariate_Sort_Set_big)
+```
+
+```{r}
+panel_l_1 <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "E/Pm", "ROE", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_l_1
+```
+
+```{r}
+panel_l_2 <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "ROE", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_l_2
+```
+
+```{r}
+panel_l_3 <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "C/Pm", "ROE", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_l_3
+```
+
+```{r}
+panel_l_4 <- fm(Univariate_Sort_Set_big_small, c("Sigma_3", "B/Mm", "ROE","NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_l_4
+```
+
+```{r}
+panel_l_5 <- fm(Univariate_Sort_Set_big_small, c("B/Mm","E/Pm", "C/Pm","Log_MV","MV", "RSI","Alpha_3","Mom_12_2", "ROE","NOA", "CEI", "Sigma_3","SD"))
+panel_l_5
+```
+```{r}
+panel_l_6 <- fm(Univariate_Sort_Set_big_small, c("B/Mm","Log_MV", "RSI", "ROE", "CEI","SD"))
+panel_l_6
+```
+```{r}
+panel_l_7 <- fm(Univariate_Sort_Set_big_small, c("B/Mm","Log_MV", "RSI", "ROE", "CEI","Sigma_3"))
+panel_l_7
+```
+
+```{r}
+library(psych)
+
+a <- as.numeric(Univariate_Sort_Set)
+
+result <- cor(Univariate_Sort_Set) 
+Univariate_Sort_Set_big_small$r
+```
+
+
