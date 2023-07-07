@@ -8,8 +8,6 @@ date: "`r Sys.Date()`"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Fama and Macbeth Regression
-
 ```{r}
 library(data.table)
 library(tidyr)
@@ -27,6 +25,8 @@ stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
 Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
 ```
 
+##Cross-Sectional Regression
+
 ```{r}
 coef_cross_sectional_new <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
                                             .(intercept=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[1],
@@ -38,6 +38,20 @@ coef_cross_sectional_new <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.
                                               gamma.rsi=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[7])
                               ,by=ym]
 ```
+
+##T-Test
+
+```{r}
+coef_cross_sectional_new[,t.test(intercept)]
+coef_cross_sectional_new[,t.test(gamma.sigma3)]
+coef_cross_sectional_new[,t.test(gamma.bmm)]
+coef_cross_sectional_new[,t.test(gamma.cei)]
+coef_cross_sectional_new[,t.test(gamma.logmv)]
+coef_cross_sectional_new[,t.test(gamma.alpha3)]
+coef_cross_sectional_new[,t.test(gamma.rsi)]
+```
+
+##Rolling Mean and Cumulative Mean
 
 ```{r}
 cols <- colnames(coef_cross_sectional_new[, -1])
