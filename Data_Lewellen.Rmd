@@ -25,6 +25,7 @@ stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
 Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
 ```
 
+## Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
 ##Cross-Sectional Regression
 
 ```{r}
@@ -64,4 +65,36 @@ data_lewellen <- cbind(data_lewellen, cummean = cumsum(coef_cross_sectional_new[
 save(data_lewellen, file="Data_Lewellen.RData")
 ```
 
+## Selected Factors: Log_MV, Alpha_3, RSI
+##Cross-Sectional Regression
 
+```{r}
+coef_cross_sectional_new_3 <- Univariate_Sort_Set_big_small[!is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(intercept=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.logmv=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.alpha3=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.rsi=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[4])
+                              ,by=ym]
+```
+
+##T-Test
+
+```{r}
+coef_cross_sectional_new_3[,t.test(intercept)]
+coef_cross_sectional_new_3[,t.test(gamma.logmv)]
+coef_cross_sectional_new_3[,t.test(gamma.alpha3)]
+coef_cross_sectional_new_3[,t.test(gamma.rsi)]
+```
+
+##Rolling Mean and Cumulative Mean
+
+```{r}
+cols_3 <- colnames(coef_cross_sectional_new_3[, -1])
+setorder(coef_cross_sectional_new_3, ym)
+data_lewellen_3 <- cbind(coef_cross_sectional_new_3, mean36 = rollmeanr(coef_cross_sectional_new_3[, ..cols_3], 36, fill = NA))
+data_lewellen_3 <- cbind(data_lewellen_3, cummean = cumsum(coef_cross_sectional_new_3[, ..cols_3]) / seq_along(data_lewellen_3[, ym]))
+```
+
+```{r}
+save(data_lewellen_3, file="Data_Lewellen_3.RData")
+```
