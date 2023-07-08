@@ -37,7 +37,7 @@ VAR_3_Set <- VAR_3_Set[Id %in% Stock_list_long_history]
 VAR_5_Set <- VAR_5_Set[Id %in% Stock_list_long_history]
 Stock_list <- as.list(unique(VAR_3_Set$Id))
 
-# Replace NA in log_MV as the minimum number -4.60517
+# Replace -Inf in log_MV as the minimum number -4.60517
 VAR_3_Set[is.infinite(Log_MV), Log_MV := -4.60517]
 VAR_5_Set[is.infinite(Log_MV), Log_MV := -4.60517]
 
@@ -46,12 +46,13 @@ VAR_5_Set[is.infinite(Log_MV), Log_MV := -4.60517]
 VAR_Func <- function(stocks){
 
   VAR_3_Set_RETfcst <- data.table(
-    Id = chr(),
-    ym = chr(),
-    RET.USD = num(),
-    Log_MV = num(),
-    Alpha_3 = num(),
-    RSI = num(),
+    Id = character(),
+    ym = character(),
+    RET.USD = integer(),
+    Log_MV = integer(),
+    Alpha_3 = integer(),
+    RSI = integer(),
+    RET_VARfcst = integer()
   )
 
   for (stock in stocks){
@@ -67,12 +68,28 @@ VAR_Func <- function(stocks){
     RET_list <- as.list(RET_VARfcst[1:n_pred_period])
     RET_list <- c(rep(NA,36),RET_list)
     Single_Stock_Set$RET_VARfcst <- RET_list
-    VAR_3_Set_RETfcst <- 
+    VAR_3_Set_RETfcst <- rbind(VAR_3_Set_RETfcst,Single_Stock_Set)
   }
+  VAR_3_Set_RETfcst
 }
 
 
 VAR_Func(Stock_list)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
