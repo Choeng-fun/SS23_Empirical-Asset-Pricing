@@ -20,7 +20,7 @@ library(dplyr)
 ```{r}
 load("../../Data/Data_Lewellen_6.RData")
 data_lewellen_6 <- as.data.table(data_lewellen_6)
-load("../Univariate_Sort_Set.RData")
+load("../../Univariate_Sort_Set.RData")
 Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
 
 stock_size <- Univariate_Sort_Set
