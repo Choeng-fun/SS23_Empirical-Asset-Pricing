@@ -22,6 +22,7 @@ library(zoo)
 library(quadprog)
 library(IntroCompFinR)
 library(tidyr)
+library(dplyr)
 ```
 
 ##convert the data frame to time series data
@@ -40,10 +41,14 @@ write.csv(new_df, file = "Time serial return.csv", row.names = FALSE)
 
 ##select stocks
 ```{r }
-selected_stocks <- time_series_return_df[,c("Date","13123P","13396J")]
+#selected_stocks <- time_series_return_df[,c("Date","13123P","13396J")]
+selected_stocks <- time_series_return_df[,c("Date","900789","900995")]
 #selected_stocks <- merge("13123P","13396J")
 rownames(selected_stocks) <- selected_stocks$Date
-colnames(selected_stocks) <- c("APPLE","BOEING")
+#colnames(selected_stocks) <- c("Unilever","BP")
+selected_stocks <- selected_stocks %>% 
+  select(`900789`, `900995`)
+names(selected_stocks) <- c("Unilever","BP")
 ```
 
 
@@ -56,6 +61,7 @@ pairs(scatter_data, col = "blue", pch = 16)
 
 ## parameters
 ```{r}
+
 n_obs <- dim(selected_stocks)[1]
 n_obs
 mu_hat_month <- colMeans(selected_stocks)
@@ -96,6 +102,9 @@ plot(global_minimum_variance_portfolio)
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 summary(tangency_portfolio_no_short)
 plot(tangency_portfolio_no_short)
+```
+```{r}
+summary(tangency_portfolio_no_short)[4]
 ```
 
 ## Perfomance Visualization
