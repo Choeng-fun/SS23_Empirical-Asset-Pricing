@@ -98,7 +98,7 @@ monthly_3_var_20 <- VAR_3_Set_RETfcst %>%
 quarterly_3_var_20 <- monthly_3_var_20
 
 
-save(monthly_3_var_20,file="monthly_3_var_20.RData")
-save(quarterly_3_var_20,file="quarterly_3_var_20.RData")
+save(monthly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_3_var_20.RData")
+save(quarterly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_3_var_20.RData")
 
 
