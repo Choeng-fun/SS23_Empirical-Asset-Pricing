@@ -46,9 +46,12 @@ VAR_5_Set[is.infinite(Log_MV), Log_MV := -4.60517]
 VAR_Func <- function(stocks){
 
   VAR_3_Set_RETfcst <- data.table(
-    col1 = integer(),
-    col2 = character(),
-    col3 = logical()
+    Id = chr(),
+    ym = chr(),
+    RET.USD = num(),
+    Log_MV = num(),
+    Alpha_3 = num(),
+    RSI = num(),
   )
 
   for (stock in stocks){
