@@ -2619,42 +2619,23 @@ example <- example[,ym:=NULL]
 
 #EstResult
 
-lagselect <- VARselect(example, lag.max = 10, type = "const")
-lagselect$selection
+lag_order <- VARselect(example, lag.max = 10, type = "both")$selection[1]
+print(lag_order)
 
-Model1 <- VAR(example, p = 2, type = "const", season = NULL, exog = NULL) 
+lagselect$selection$bic
+
+
+
+
+Model1 <- VAR(example, p = 6, type = "const", season = NULL, exog = NULL) 
 summary(Model1)
 forecast <- predict(Model1, n.ahead = 5, ci = 0.95)
 fanchart(forecast, names = "RET.USD", main = "Fanchart for RET.USD", xlab = "Horizon", ylab = "Log_MV")
-forecast$fcst
+q <- forecast$fcst$RET.USD
 
-
-
-
-example_1 <- VAR_3_Set %>% filter(Id=="134982")
-example_1 <- example_1[,Id:=NULL]
-example_1 <- example_1[,ym:=NULL]
-
-
-Model1 <- VAR(example_1, p = 2, type = "const", season = NULL, exog = NULL) 
-
-forecast <- predict(Model1, n.ahead = 5, ci = 0.95)
-fanchart(forecast, names = "RET.USD", main = "Fanchart for RET.USD", xlab = "Horizon", ylab = "Log_MV")
-forecast$fcst
-
-
-
-
-
-
+q
 
 ```
 
-```{r}
-RET.USD
-```
-```{r}
-panel_1 <- panel_country[Id=="134982",1:7]
-```
 
 
