@@ -20,15 +20,126 @@ load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_E
 ```{r}
 load("Univariate_Sort_Set.RData")
 ```
-
+## Stock List : monthly_6 (factor)_mean36_20 (stocks)
 ```{r}
-stock_20_6_mean36 <- stock_20_6_mean36 %>% 
+quarterly_6_mean_20 <- stock_20_6_mean36 %>% 
   select(Id, ym)
 
-stock_list <- stock_20_6_mean36 %>% 
-  inner_join(Univariate_Sort_Set, by = c("Id", "ym")) %>% 
-  select(Id, ym, RET.USD)
+monthly_6_mean_20 <-quarterly_6_mean_20
 ```
+
+## Stock List : monthly_6 (factor)_cum_20 (stocks)
+
+```{r}
+quarterly_6_cum_20 <- stock_20_6_cum %>% 
+  select(Id, ym)
+
+monthly_6_cum_20 <- quarterly_6_cum_20
+```
+
+
+```{r}
+save(monthly_6_mean_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_mean_20.RData")
+
+save(quarterly_6_mean_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_mean_20.RData")
+
+save(monthly_6_cum_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_cum_20.RData")
+
+save(quarterly_6_cum_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_cum_20.RData")
+```
+
+
+
+## Stock List : monthly_3 (factor)_mean36_20 (stocks)
+```{r}
+monthly_3_mean_20 <- stock_20_3_mean36 %>% 
+  select(Id, ym)
+
+quarterly_3_mean_20 <- monthly_3_mean_20
+```
+
+## Stock List : monthly_3 (factor)_cum_20 (stocks)
+
+```{r}
+quarterly_3_cum_20 <- stock_20_3_cum %>% 
+  select(Id, ym)
+
+monthly_3_cum_20 <- quarterly_3_cum_20
+```
+
+```{r}
+save(monthly_3_mean_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_mean_20.RData")
+
+save(quarterly_3_mean_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_mean_20.RData")
+
+save(monthly_3_cum_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_cum_20.RData")
+
+save(quarterly_3_cum_20, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_cum_20.RData")
+```
+
+
+
+## Stock List : monthly_6 (factor)_mean36_10 (th Decile)
+```{r}
+quarterly_6_mean_10 <- stock_10_6_mean36 %>% 
+  select(Id, ym)
+
+monthly_6_mean_10 <-quarterly_6_mean_10
+```
+
+## Stock List : monthly_6 (factor)_cum_10 (th Decile)
+
+```{r}
+quarterly_6_cum_10 <- stock_10_6_cum %>% 
+  select(Id, ym)
+
+monthly_6_cum_10 <- quarterly_6_cum_10
+```
+
+
+```{r}
+save(monthly_6_mean_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_mean_10.RData")
+
+save(quarterly_6_mean_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_mean_10.RData")
+
+save(monthly_6_cum_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_cum_10.RData")
+
+save(quarterly_6_cum_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_cum_10.RData")
+```
+
+
+
+## Stock List : monthly_3 (factor)_mean36_10 (th Decile)
+```{r}
+quarterly_3_mean_10 <- stock_10_3_mean36 %>% 
+  select(Id, ym)
+
+monthly_3_mean_10 <-quarterly_3_mean_10
+```
+
+## Stock List : monthly_3 (factor)_cum_10 (th Decile)
+
+```{r}
+quarterly_3_cum_10 <- stock_10_3_cum %>% 
+  select(Id, ym)
+
+monthly_3_cum_10 <- quarterly_3_cum_10
+```
+
+
+```{r}
+save(monthly_3_mean_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_mean_10.RData")
+
+save(quarterly_3_mean_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_mean_10.RData")
+
+save(monthly_3_cum_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_cum_10.RData")
+
+save(quarterly_3_cum_10, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_cum_10.RData")
+```
+
+
+
+
 
 ## Calculate Weight
 ```{r}
@@ -49,7 +160,7 @@ for (date in unique(stock_list$ym)) {
   start_date <- as.Date(date) - months(window_size - 1)
   
   # 過去の期間内のデータを抽出
-  window_data <-  %>%
+  window_data <- stock_list %>%
     filter(year_month >= start_date & year_month <= date)
   
   # リターンデータをリスト形式に変換
