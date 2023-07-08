@@ -16,33 +16,50 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
-install.packages("quadprog", repos="http://cran.rstudio.com")
-install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
+#install.packages("quadprog", repos="http://cran.rstudio.com")
+#install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
 library(zoo)
 library(quadprog)
 library(IntroCompFinR)
 library(tidyr)
 library(dplyr)
+#library(data.table)
 ```
 
 ##convert the data frame to time series data
 ```{r}
 # Extract the required columns and rearrange the data
-time_series_return_df <- DS.monthly[, c("Id", "Date", "RET.USD")]
+stock_list_20_6_cum_ym <- stock_list_20_6_cum %>%
+  mutate(ym=as.yearmon(ym,"%Y.%m"))
+time_series_return_df <- stock_list_20_6_cum_ym[, c("Id", "ym", "RET.USD")]
 time_series_return_df <- pivot_wider(time_series_return_df, names_from = Id, values_from = RET.USD)
-rownames(time_series_return_df) <- time_series_return_df$Date
+rownames(time_series_return_df) <- time_series_return_df$ym
 
-class(time_series_return_df$Date)
+class(time_series_return_df$ym)
 # Save the new dataframe as "Time serial return"
 write.csv(new_df, file = "Time serial return.csv", row.names = FALSE)
 
 ```
 
+##sele
+```{r}
+stock_number <- 20
+unique_dates <- unique(stock_list_20_6_cum_ym$ym)
+for (date in unique_dates) {
+  matching_rows <- filter(df, ym == date)
+  print(matching_rows)
+  for (i in stock_number){
+    
+  }
+}
+```
+
+
 
 ##select stocks
 ```{r }
 #selected_stocks <- time_series_return_df[,c("Date","13123P","13396J")]
-selected_stocks <- time_series_return_df[,c("Date","900789","900995")]
+selected_stocks <- time_series_return_df[,c("ym","901450","900590")]
 #selected_stocks <- merge("13123P","13396J")
 rownames(selected_stocks) <- selected_stocks$Date
 #colnames(selected_stocks) <- c("Unilever","BP")
@@ -57,7 +74,6 @@ names(selected_stocks) <- c("Unilever","BP")
 scatter_data <- coredata(selected_stocks)
 pairs(scatter_data, col = "blue", pch = 16)
 ```
-
 
 ## parameters
 ```{r}
@@ -105,6 +121,7 @@ plot(tangency_portfolio_no_short)
 ```
 ```{r}
 summary(tangency_portfolio_no_short)[4]
+weighted_result <- tangency_portfolio_no_short$weights
 ```
 
 ## Perfomance Visualization

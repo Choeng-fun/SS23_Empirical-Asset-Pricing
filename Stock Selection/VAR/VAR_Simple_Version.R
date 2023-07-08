@@ -32,7 +32,7 @@ length(unique(VAR_5_Set[is.na(check_NA_using_sum),]$Id))
 VAR_5_Set[,check_NA_using_sum:=NULL]
 
 # filter out stocks that have a history less than 36 months
-Stock_list_long_history <- as.list(VAR_3_Set[,.N, by=Id][N>=36]$Id)
+Stock_list_long_history <- as.list(VAR_3_Set[,.N, by=Id][N>36]$Id)
 VAR_3_Set <- VAR_3_Set[Id %in% Stock_list_long_history]
 VAR_5_Set <- VAR_5_Set[Id %in% Stock_list_long_history]
 Stock_list <- as.list(unique(VAR_3_Set$Id))
@@ -54,15 +54,25 @@ VAR_Func <- function(stocks){
     RSI = integer(),
     RET_VARfcst = integer()
   )
+  n=0
 
-  for (stock in stocks){
-    
+  for (stock in c(Stock_list)){
+    print(n)
+    n <- n+1
+    #print("START")
+    # print(stock)
     n_pred_period <- nrow(VAR_3_Set[Id==stock,])-36
+    # print(n_pred_period)
     Single_Stock_Set <- VAR_3_Set[Id==stock,]
+    # print(Single_Stock_Set)
     Single_Stock_36M_Set <- Single_Stock_Set[1:36]
+    # print(Single_Stock_36M_Set)
     Single_Stock_Training_Set <- Single_Stock_36M_Set %>% mutate(Id=NULL) %>% mutate(ym=NULL)
+    # print(Single_Stock_Training_Set)
     lag_order <- VARselect(Single_Stock_Training_Set, lag.max = 10, type = "both")$selection[1]
+    # print(lag_order)
     VARModel <- VAR(Single_Stock_Training_Set, p = lag_order, type = "const", season = NULL, exog = NULL) 
+    # print(VARModel)
     forecast <- predict(VARModel, n.ahead = n_pred_period, ci = 0.95)
     RET_VARfcst <- forecast$fcst$RET.USD
     RET_list <- as.list(RET_VARfcst[1:n_pred_period])
@@ -70,39 +80,25 @@ VAR_Func <- function(stocks){
     Single_Stock_Set$RET_VARfcst <- RET_list
     VAR_3_Set_RETfcst <- rbind(VAR_3_Set_RETfcst,Single_Stock_Set)
   }
-  VAR_3_Set_RETfcst
+  return(VAR_3_Set_RETfcst)
 }
-
-
-VAR_Func(Stock_list)
-
+VAR_3_Set_RETfcst <- VAR_Func(Stock_list)
 
 
 
+# remove the first 36 month data, where the RETfcst are NA
+VAR_3_Set_RETfcst$RET_VARfcst <- as.numeric(VAR_3_Set_RETfcst$RET_VARfcst)
+VAR_3_Set_RETfcst_NoNA <- VAR_3_Set_RETfcst[!is.na(RET_VARfcst),]
 
+setorder(VAR_3_Set_RETfcst_NoNA,ym,RET_VARfcst)
 
-
-
-
-
-
-
-
-
+top_20 <- VAR_3_Set_RETfcst_NoNA %>%
+  group_by(ym) %>%
+  slice_max(order_by = RET_VARfcst, n = 20) %>%
+  dplyr::select(Id,ym,RET.USD)
 
 
 
 
 
-example <- VAR_3_Set %>%  filter(Id=="134982") %>% slice(1:36) 
-example <- example[,Id:=NULL]
-example <- example[,ym:=NULL]
-
-Model1 <- VAR(example, p = 6, type = "const", season = NULL, exog = NULL) 
-
-forecast <- predict(Model1, n.ahead = 5, ci = 0.95)
-fanchart(forecast, names = "RET.USD", main = "Fanchart for RET.USD", xlab = "Horizon", ylab = "Log_MV")
-q <- forecast$fcst$RET.USD[1:5]
-
-q
 
