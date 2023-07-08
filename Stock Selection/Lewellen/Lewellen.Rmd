@@ -428,3 +428,9 @@ check_num <- stock_10_6_mean36 %>%
   summarise(n =n())
 ```
 
+```{r}
+save(stock_20_6_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_mean36.RData")
+
+save(stock_20_6_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_cum.RData")
+```
+
