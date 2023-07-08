@@ -1,0 +1,73 @@
+---
+title: "Tangent_Portfolio_Calculation"
+author: "Yasu"
+date: "2023-07-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading Data
+### 6 factor
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_mean36.RData")
+
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_cum.RData")
+```
+
+```{r}
+load("Univariate_Sort_Set.RData")
+```
+
+```{r}
+stock_20_6_mean36 <- stock_20_6_mean36 %>% 
+  select(Id, ym)
+
+stock_list <- stock_20_6_mean36 %>% 
+  inner_join(Univariate_Sort_Set, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+```
+
+## Calculate Weight
+```{r}
+
+# リターンデータを含むパネルデータセット（firm, year_month, returnなど）を準備しておく
+
+window_size <- 36  # 過去の期間（36ヶ月）
+
+portfolio <- data.frame()  # ポートフォリオ結果を格納するデータフレーム
+
+# パネルデータをfirmとyear_monthでグループ化
+grouped_data <- stock_list %>%
+  group_by(Id, ym)
+
+# 各月ごとに処理
+for (date in unique(stock_list$ym)) {
+    # 開始日を計算
+  start_date <- as.Date(date) - months(window_size - 1)
+  
+  # 過去の期間内のデータを抽出
+  window_data <-  %>%
+    filter(year_month >= start_date & year_month <= date)
+  
+  # リターンデータをリスト形式に変換
+  return_list <- window_data %>%
+    group_by(firm) %>%
+    summarise(return = list(return)) %>%
+    pull(return)
+  
+  # タンジェントポートフォリオの構築
+  tangent_portfolio <- tangentPortfolio(return_list, method = "GMV")
+  
+  # ポートフォリオ結果をデータフレームに追加
+  portfolio <- portfolio %>%
+    bind_rows(data.frame(date = date, weights = tangent_portfolio$weights))
+}
+
+# ポートフォリオ結果を表示
+print(portfolio)
+
+```
+
