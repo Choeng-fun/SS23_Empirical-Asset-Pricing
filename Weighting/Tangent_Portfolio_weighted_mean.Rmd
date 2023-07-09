@@ -1,5 +1,5 @@
 ---
-title: "Tangent_Portfolio_weighted_cum"
+title: "Tangent_Portfolio_weighted_mean"
 author: "Yu"
 date: "2023-07-09"
 output: html_document
@@ -37,10 +37,10 @@ DS.monthly$RET.USD <- DS.monthly$RET.USD/100
 ```
 
 
-## quarterly_3_cum_20
+## quarterly_3_mean_20
 ```{r}
 ##Convert date type to "date"in current portfolio dateframe
-current_data_df <- quarterly_3_cum_20
+current_data_df <- quarterly_3_mean_20
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
 
@@ -74,10 +74,10 @@ top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
 selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
 
 
-# if(any(is.na(selected_past_data_df))){
-#   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
-#   top_20_stock_id_NoNA <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
-# }
+ if(any(is.na(selected_past_data_df))){
+   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+   top_20_stock_id<- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
 selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
 
 
@@ -126,12 +126,12 @@ for (date in dates[2:length(dates)]){
   
   selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
   
-#   if(any(is.na(selected_past_data_df))){
-#     missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
-#     top_20_stock_id_NoNA <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
-# }
-#   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
-#   
+   if(any(is.na(selected_past_data_df))){
+     missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+     top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+   
   selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 
 
@@ -164,14 +164,12 @@ for (date in dates[2:length(dates)]){
   weights_df <- as.data.table(weights_df)
   rm(cov_mat_month)
   
-  # weights_df[,ym:=dates]
   
   weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
   
   er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
   rownames(er_sd_df) = date
   er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
-  
   }
   else{
     print(date)
@@ -184,22 +182,20 @@ for (date in dates[2:length(dates)]){
 
 ```{r}
 #save result
-weighted_result_quarterly_3_cum_20 <-  weights_df_final
-save(weighted_result_quarterly_3_cum_20,file = "./Weighted_Result/weighted_result_quarterly_3_cum_20.Rdata")
+weighted_result_quarterly_3_mean_20 <-  weights_df_final
+save(weighted_result_quarterly_3_mean_20,file = "./Weighted_Result/weighted_result_quarterly_3_mean_20.Rdata")
 
-re_sd_result_quarterly_3_cum_20 <-  er_sd_df_final
-save(re_sd_result_quarterly_3_cum_20,file = "./Weighted_Result/re_sd_result_quarterly_3_cum_20.Rdata")
+re_sd_result_quarterly_3_mean_20 <-  er_sd_df_final
+save(re_sd_result_quarterly_3_mean_20,file = "./Weighted_Result/re_sd_result_quarterly_3_mean_20.Rdata")
 
 ```
 
 
-## quarterly_6_cum_20
-
-
+## quarterly_6_mean_20
 
 ```{r}
 ##Convert date type to "date"in current portfolio dateframe
-current_data_df <- quarterly_6_cum_20
+current_data_df <- quarterly_6_mean_20
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
 
@@ -278,10 +274,10 @@ for (date in dates[2:length(dates)]){
   top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
   selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
   
- # if(any(is.na(selected_past_data_df))){
+ if(any(is.na(selected_past_data_df))){
   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
   top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
-#}
+}
 
   selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
   seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
@@ -322,9 +318,9 @@ for (date in dates[2:length(dates)]){
 
 ```{r}
 #save result
-weighted_result_quarterly_6_cum_20 <-  weights_df_final
-save(weighted_result_quarterly_6_cum_20,file = "./Weighted_Result/weighted_result_quarterly_6_cum_20.Rdata")
+weighted_result_quarterly_6_mean_20 <-  weights_df_final
+save(weighted_result_quarterly_6_mean_20,file = "./Weighted_Result/weighted_result_quarterly_6_mean_20.Rdata")
 
-re_sd_result_quarterly_6_cum_20 <-  er_sd_df_final
-save(re_sd_result_quarterly_6_cum_20,file = "./Weighted_Result/re_sd_result_quarterly_6_cum_20.Rdata")
+re_sd_result_quarterly_6_mean_20 <-  er_sd_df_final
+save(re_sd_result_quarterly_6_mean_20,file = "./Weighted_Result/re_sd_result_quarterly_6_mean_20.Rdata")
 ```
