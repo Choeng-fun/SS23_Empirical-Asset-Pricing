@@ -1,0 +1,41 @@
+---
+title: "Portfolio_Performance"
+author: "Yasu"
+date: "2023-07-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(ggplot2)
+```
+
+## Calculate market Portfolio
+```{r}
+Market_RET <- DS.monthly %>% 
+  select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup %>% 
+  arrange(ym, Id)
+
+Market_RET_ym <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+```
+
+```{r}
+
+```
+
+

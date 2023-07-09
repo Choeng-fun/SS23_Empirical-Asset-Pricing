@@ -25,6 +25,7 @@ library(zoo)
 ```{r}
 load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
 load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_WS_yearly.RData")
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_static.RData")
 ```
 
 ```{r}

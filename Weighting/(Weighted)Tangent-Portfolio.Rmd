@@ -30,6 +30,10 @@ library(lubridate)
 #library(data.table)
 ```
 
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
+```
+
 ##(Test)convert the data frame to time series data
 
 ```{r}
@@ -76,8 +80,9 @@ risk_free_rate <- 0.02
 stock_ids <- unique(current_data_df$Id)
 dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
 
-top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
-selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+class(current_data_df$ym)
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
