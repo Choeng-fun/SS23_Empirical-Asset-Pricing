@@ -67,8 +67,8 @@ current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```{r}
 
 get_previous_three_year <- function(date) {
-  year(date)<-year(date)-3
-  return(seq.Date(from = date, by = "month", length.out = 36))
+  year(date)<-year(date)-2
+  return(seq.Date(from = date, by = "month", length.out = 24))
 }
 
 ```
@@ -83,14 +83,20 @@ dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
 class(current_data_df$ym)
 top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
 selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
 rm(selected_past_data_df)
+
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
 cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
+
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+
 weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
 colnames(weights_df) = top_20_stock_id
 rownames(weights_df) = dates[1]
@@ -128,11 +134,61 @@ for (date in dates[2:length(dates)]){
   }
   else{
     print("bad perfom.")
-    break
+  
   }
 }
 
 ```
+
+
+## Return Calculation
+```{r}
+# exclude index
+weights_df_final_r <- rownames_to_column(weights_df_final, var = "ym")
+
+# 
+t <- data.frame(colnames(weights_df_final_r))
+t <- t %>% 
+  slice(-1)
+names(t) <- c("Id")
+  
+Ids <- unique(t$Id)
+Ids <- data.frame(Id = Ids)
+setorder(Ids, Id)
+
+RET_selected_data <- DS.monthly %>% 
+  semi_join(Ids, by = "Id") %>% 
+  select(Id, ym, RET.USD)
+
+RET_time_series <- pivot_wider(RET_selected_data,names_from = Id, values_from = RET.USD) %>% 
+  mutate(ym = ymd(ym)) %>%
+  filter(month(ym) %in% c(3, 6, 9, 12)) %>% 
+  arrange(ym) %>% 
+  filter(year(ym) > c(1982))
+
+
+class(weights_df_final_r$ym)
+#weights_df_final_r$ym <- as.Date(as.yearmon(weights_df_final_r$ym,"%Y.%m"))
+weights_df_final_r <- weights_df_final_r %>% 
+  mutate(ym = ymd(ym))
+class(RET_time_series$ym)
+
+# setorder weights_df_final_r of Id column
+
+
+RET_Cal <- weights_df_final_r %>% 
+  full_join(RET_time_series, by = "ym")
+
+write.csv(weights_df_final_r, "weights_df_final_r.csv", row.names = FALSE)
+
+write.csv(RET_time_series, "RET_time_series.csv", row.names = FALSE)
+
+
+write.csv(RET_Cal, "RET_Cal_quarterly_3_cum.csv", row.names = FALSE)
+```
+
+
+
 
 ##select stocks
 
