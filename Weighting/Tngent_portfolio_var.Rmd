@@ -26,11 +26,18 @@ library(data.table)
 
 ```{r}
 ## convert the date type of ym to "Date" in the original dataset
-# load("~/Desktop/Empirical Asset Pricing/Repo/Original_Dataset/GBR_DS_monthly.RData")
+ load("~/Desktop/Empirical Asset Pricing/Repo/Original_Dataset/GBR_DS_monthly.RData")
 # load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_3_var_20.RData")
+# load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_5_var_20.RData")
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
 DS.monthly$RET.USD <- DS.monthly$RET.USD/100
+<<<<<<< HEAD
 #DS.monthly <- DS.monthly[!is.na(RET.USD)]
+=======
+
+
+DS.monthly <- DS.monthly[is.na(RET.USD), RET.USD:=0]
+>>>>>>> 84e5fe446509e2252161b8f14051594436a7a15c
 ```
 
 
@@ -47,7 +54,6 @@ current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 lag_years <- 2
 get_previous_three_year <- function(date) {
   year(date)<-year(date)-lag_years
-  #month(date) <- month(date)+1
   return(seq.Date(from = date, by = "month", length.out = lag_years*12))
 }
 
@@ -71,17 +77,19 @@ top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
 
 selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
 
-if(any(is.na(selected_past_data_df))){
-  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
-  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
-}
+
+# if(any(is.na(selected_past_data_df))){
+#   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+#   top_20_stock_id_NoNA <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+# }
+selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
 
 
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 
 
 #change to time-series data type
-seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id_NoNA]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
 rm(selected_past_data_df)
 
@@ -98,8 +106,19 @@ rm(seri_selected_past_data_df_excess_return)
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
 weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+# if(length(weights_df)==19){
+#   weights_df <- c(weights_df,0)
+#   names(weights_df)[20] <- "NA"
+#   
+#   #top_20_stock_id_NoNA <- C("top_20_stock_id_NoNA","NA")
+# }
+
+weights_df <- as.data.table(weights_df)
+
 rm(cov_mat_month)
-colnames(weights_df) = top_20_stock_id
+colnames(weights_df) = top_20_stock_id_NoNA
+#weights_df[,ym:=dates[1]]
 rownames(weights_df) = dates[1]
 
 weights_df_final = weights_df
@@ -114,14 +133,18 @@ rownames(er_sd_df_final) = dates[1]
 for (date in dates[2:length(dates)]){
   date = as.Date(date)
   top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  
   selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
   
- # if(any(is.na(selected_past_data_df))){
-  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
-  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
-#}
-
+#   if(any(is.na(selected_past_data_df))){
+#     missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+#     top_20_stock_id_NoNA <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+# }
+#   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+#   
   selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
   seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
   rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
   rm(selected_past_data_df)
@@ -140,9 +163,23 @@ for (date in dates[2:length(dates)]){
     tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
   
   weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+<<<<<<< HEAD
   colnames(weights_df) = top_20_stock_id
   rownames(weights_df) = date
   weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+=======
+   colnames(weights_df) = top_20_stock_id
+   rownames(weights_df) = date
+  
+  weights_df <- as.data.table(weights_df)
+  rm(cov_mat_month)
+  
+  # weights_df[,ym:=dates]
+  
+  
+  
+  weights_df_final_co = dplyr::bind_rows(weights_df_final,weights_df)
+>>>>>>> 84e5fe446509e2252161b8f14051594436a7a15c
   
   er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
   rownames(er_sd_df) = date
