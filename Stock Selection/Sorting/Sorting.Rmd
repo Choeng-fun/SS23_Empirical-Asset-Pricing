@@ -39,9 +39,8 @@ sorting_selection_6 <- sorting_data_6 %>%
 ```
 
 ```{r}
-save(sorting_selection_6, "../../Data/Sorting_Selection_6.RData")
+save(sorting_selection_6, file="../../Data/Sorting_Selection_6.RData")
 ```
-
 
 ```{r}
 sorting_data_3 <- Univariate_Sort_Set %>%
@@ -55,5 +54,9 @@ sorting_selection_3 <- sorting_data_3 %>%
     arrange(desc(alpha3.bin), desc(rsi.bin), logmv.bin, .by_group = TRUE) %>%
     mutate(rank=seq_along(Id)) %>%
   ungroup()
+```
+
+```{r}
+save(sorting_selection_3, file="../../Data/Sorting_Selection_3.RData")
 ```
 
