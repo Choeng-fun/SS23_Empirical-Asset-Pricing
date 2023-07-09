@@ -1,0 +1,62 @@
+---
+title: "Sorting Selection"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(zoo)
+library(dplyr)
+```
+
+```{r}
+load("../../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+n <- 10
+```
+
+```{r}
+sorting_data_6 <- Univariate_Sort_Set %>%
+  select(Id, ym, ExRET.USD, Sigma_3, `B/Mm`, CEI, Log_MV, Alpha_3, RSI)
+
+sorting_selection_6 <- sorting_data_6 %>%
+  group_by(ym) %>%
+    mutate(sigma3.bin=ntile(Sigma_3, n), 
+           bmm.bin=ntile(`B/Mm`, n), 
+           cei.bin=ntile(CEI, n), 
+           logmv.bin=ntile(Log_MV, n), 
+           alpha3.bin=ntile(Alpha_3, n), 
+           rsi.bin=ntile(RSI, n)) %>%
+    arrange(desc(sigma3.bin), desc(alpha3.bin), desc(rsi.bin), logmv.bin, bmm.bin, cei.bin, .by_group = TRUE) %>%
+    mutate(rank=seq_along(Id)) %>%
+  ungroup()
+```
+
+```{r}
+save(sorting_selection_6, file="../../Data/Sorting_Selection_6.RData")
+```
+
+```{r}
+sorting_data_3 <- Univariate_Sort_Set %>%
+  select(Id, ym, ExRET.USD, Log_MV, Alpha_3, RSI)
+
+sorting_selection_3 <- sorting_data_3 %>%
+  group_by(ym) %>%
+    mutate(logmv.bin=ntile(Log_MV, n), 
+           alpha3.bin=ntile(Alpha_3, n), 
+           rsi.bin=ntile(RSI, n)) %>%
+    arrange(desc(alpha3.bin), desc(rsi.bin), logmv.bin, .by_group = TRUE) %>%
+    mutate(rank=seq_along(Id)) %>%
+  ungroup()
+```
+
+```{r}
+save(sorting_selection_3, file="../../Data/Sorting_Selection_3.RData")
+```
+
