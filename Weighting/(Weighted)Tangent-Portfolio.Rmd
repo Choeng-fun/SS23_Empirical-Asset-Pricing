@@ -17,9 +17,9 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
-#install.packages("quadprog", repos="http://cran.rstudio.com")
-#install.packages("xts", repos="http://cloud.r-project.org")
-#install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
+# install.packages("quadprog", repos="http://cran.rstudio.com")
+# install.packages("xts", repos="http://cloud.r-project.org")
+# install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
 library(zoo)
 library(quadprog)
 library(IntroCompFinR)
@@ -27,7 +27,7 @@ library(tidyr)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
-#library(data.table)
+library(data.table)
 ```
 
 ##(Test)convert the data frame to time series data
@@ -72,7 +72,7 @@ get_previous_three_year <- function(date) {
 ##sele
 
 ```{r}
-risk_free_rate <- 0.02
+risk_free_rate <- 0
 stock_ids <- unique(current_data_df$Id)
 dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
 
