@@ -5,7 +5,8 @@ date: "2023-07-06"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+
+```{r}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -17,21 +18,207 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r}
 #install.packages("quadprog", repos="http://cran.rstudio.com")
+#install.packages("xts", repos="http://cloud.r-project.org")
 #install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
 library(zoo)
 library(quadprog)
 library(IntroCompFinR)
 library(tidyr)
 library(dplyr)
+library(tidyverse)
+library(lubridate)
 #library(data.table)
 ```
 
-##convert the data frame to time series data
+##(Test)convert the data frame to time series data
+
 ```{r}
 # Extract the required columns and rearrange the data
-stock_list_20_6_cum_ym <- stock_list_20_6_cum %>%
+monthly_3_cum_10 <- monthly_3_cum_10 %>%
   mutate(ym=as.yearmon(ym,"%Y.%m"))
-time_series_return_df <- stock_list_20_6_cum_ym[, c("Id", "ym", "RET.USD")]
+time_series_return_df <- monthly_3_cum_10[, c("Id", "ym", "RET.USD")]
+time_series_return_df <- pivot_wider(time_series_return_df, names_from = Id, values_from = RET.USD)
+rownames(time_series_return_df) <- time_series_return_df$ym
+
+class(time_series_return_df$ym)
+# Save the new dataframe as "Time serial return"
+# write.csv(new_df, file = "Time serial return.csv", row.names = FALSE)
+
+```
+
+```{r}
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+```
+
+
+##Convert date type in dateframe
+
+```{r}
+current_data_df <- monthly_3_cum_20
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+##Get date sequence
+
+```{r}
+
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-3
+  return(seq.Date(from = date, by = "month", length.out = 36))
+}
+
+```
+
+##sele
+
+```{r}
+risk_free_rate <- 0.02
+stock_ids <- unique(current_data_df$Id)
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  cov_mat_month <- cov(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df)
+  
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  }
+  else{
+    print("bad perfom.")
+    break
+  }
+}
+
+```
+
+##select stocks
+
+```{r }
+#selected_stocks <- time_series_return_df[,c("Date","13123P","13396J")]
+selected_stocks <- time_series_return_df[,c("ym","901450","900590")]
+#selected_stocks <- merge("13123P","13396J")
+rownames(selected_stocks) <- selected_stocks$Date
+#colnames(selected_stocks) <- c("Unilever","BP")
+selected_stocks <- selected_stocks %>% 
+  select(`900789`, `900995`)
+names(selected_stocks) <- c("Unilever","BP")
+```
+
+##plot selected stock return
+
+```{r}
+scatter_data <- coredata(selected_stocks)
+pairs(scatter_data, col = "blue", pch = 16)
+```
+
+## parameters
+
+```{r}
+
+n_obs <- dim(selected_stocks)[1]
+n_obs
+mu_hat_month <- colMeans(selected_stocks)
+mu_hat_month
+mu_hat_month <- apply(selected_stocks,2,mean)
+mu_hat_month
+sigma2_month <- apply(selected_stocks,2,var)
+sigma2_month
+sigma_month <- sqrt(sigma2_month)
+sigma_month
+cov_mat_month <- cov(selected_stocks)
+cov_mat_month
+cor_mat_month <- cor(selected_stocks)
+cor_mat_month
+
+#risk free rate
+risk_free_rate <- 0.05
+```
+
+##global minimum variance portfolio
+
+```{r }
+global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+plot(global_minimum_variance_portfolio)
+```
+
+##efficient portfolio(no short)
+
+```{r}
+
+```
+
+##global tangent porfolio(no short)
+
+```{r}
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+summary(tangency_portfolio_no_short)
+plot(tangency_portfolio_no_short)
+```
+
+```{r}
+summary(tangency_portfolio_no_short)[4]
+weighted_result <- tangency_portfolio_no_short$weights
+```
+
+## Perfomance Visualization
+
+###evolution of the \$1 invested in portfolio as a function of time
+
+```{r}
+#compute the growth of $1 invested in portfolio
+portfolio_gross_return <- portfolio_monthly_return + 1
+#compute the future values
+portfolio_future_value <- cumprod(portfolio_gross_return)
+#plot the evolution of the $1 invested in portfolio as a function of time
+plot(portfolio_future_value,type = "l", col = "blue", lwd = 2, ylab = "Dollars", main = "Future value of $1 invested in portfolio")
+```
+
+###value at risk
+
+```{r}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+ <- stock_list_20_6_cum_ym[, c("Id", "ym", "RET.USD")]
 time_series_return_df <- pivot_wider(time_series_return_df, names_from = Id, values_from = RET.USD)
 rownames(time_series_return_df) <- time_series_return_df$ym
 
@@ -41,15 +228,24 @@ write.csv(new_df, file = "Time serial return.csv", row.names = FALSE)
 
 ```
 
-##sele
+## match the stock
 ```{r}
 stock_number <- 20
-unique_dates <- unique(stock_list_20_6_cum_ym$ym)
-for (date in unique_dates) {
-  matching_rows <- filter(df, ym == date)
-  print(matching_rows)
+lag_year <- 3
+total_dates_list <- unique(stock_list_20_6_cum_ym$ym)
+
+for (date in total_dates_list) {
+  stock_list_by_date <- stock_list_20_6_cum_ym %>% dplyr::select(ym == date) 
+  vector_for_return
+  
+  #matching_rows <- stock_list_20_6_cum_ym[stock_list_20_6_cum_ym$ym == date,]
+  #print(matching_rows)
   for (i in stock_number){
+    temp_Id <- stock_list_by_date[i,]$Id
     
+    vector_for_return <- mean(DS.monthly %>% dplyr::select(Id == temp_Id,ym <= date, ym >= (date-lag_year))$RET.USD)
+    
+    stock_list_date
   }
 }
 ```
