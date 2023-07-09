@@ -106,9 +106,24 @@ monthly_3_var_20 <- VAR_3_Set_RETfcst %>%
 
 quarterly_3_var_20 <- monthly_3_var_20
 
+monthly_3_var_10 <- VAR_3_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  top_frac(0.1, wt = RET_VARfcst) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_3_var_10 <- monthly_3_var_10
+
+
 
 save(monthly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_3_var_20.RData")
 save(quarterly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_3_var_20.RData")
+save(monthly_3_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_3_var_10.RData")
+save(quarterly_3_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_3_var_10.RData")
 
 
 # 5 factor cumulative var
@@ -170,9 +185,25 @@ monthly_5_var_20 <- VAR_5_Set_RETfcst %>%
 
 quarterly_5_var_20 <- monthly_5_var_20
 
+monthly_5_var_10 <- VAR_5_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  top_frac(0.1, wt = RET_VARfcst) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_5_var_10 <- monthly_5_var_10
+
+
 
 save(monthly_5_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_5_var_20.RData")
 save(quarterly_5_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_5_var_20.RData")
+save(monthly_5_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_5_var_10.RData")
+save(quarterly_5_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_5_var_10.RData")
+
 
 
 
