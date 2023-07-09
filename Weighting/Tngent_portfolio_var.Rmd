@@ -26,15 +26,18 @@ library(data.table)
 
 ```{r}
 ## convert the date type of ym to "Date" in the original dataset
+# load("~/Desktop/Empirical Asset Pricing/Repo/Original_Dataset/GBR_DS_monthly.RData")
+# load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_3_var_20.RData")
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
 DS.monthly$RET.USD <- DS.monthly$RET.USD/100
+DS.monthly <- DS.monthly[!is.na(RET.USD)]
 ```
 
 
-
+## quarterly_3_var_20
 ```{r}
 ##Convert date type to "date"in current portfolio dateframe
-current_data_df <- 
+current_data_df <- quarterly_3_var_20
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
 
@@ -68,12 +71,20 @@ top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
 
 selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
 
+if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+
+
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
 
 #change to time-series data type
 seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
 rm(selected_past_data_df)
+
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
@@ -87,6 +98,7 @@ rm(seri_selected_past_data_df_excess_return)
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
 weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+rm(cov_mat_month)
 colnames(weights_df) = top_20_stock_id
 rownames(weights_df) = dates[1]
 
@@ -103,6 +115,12 @@ for (date in dates[2:length(dates)]){
   date = as.Date(date)
   top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
   selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+ # if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+#}
+
   selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
   seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
   rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
@@ -135,8 +153,13 @@ for (date in dates[2:length(dates)]){
     print("- negative perfomance.")
     
   }
-  write.csv(weights_df_final,)
 }
+
+```
+
+```{r}
+weighted_result_quarterly_3_var_20 <-  weights_df_final
+save(weighted_result_quarterly_3_var_20,file = "/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Weighted result/weighted_result_quarterly_3_var_20.Rdata")
 
 ```
 
