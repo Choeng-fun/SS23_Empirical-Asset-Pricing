@@ -278,6 +278,7 @@ plot(portfolio_future_value,type = "l", col = "blue", lwd = 2, ylab = "Dollars",
 
 ```
 
+```{r}
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
  <- stock_list_20_6_cum_ym[, c("Id", "ym", "RET.USD")]
 time_series_return_df <- pivot_wider(time_series_return_df, names_from = Id, values_from = RET.USD)
