@@ -12,8 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ### weighted_result_quarterly_6_mean_20
 ```{r}
 
-weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_20 %>%
-  mutate(ym=rownames(weighted_result_quarterly_3_cum_20)) %>%
+weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_6_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
   select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
@@ -72,8 +72,8 @@ annual_tseri_quarterly_3_cum_performance
 cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
 rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
 
-write.csv(cumu_quarterly_3_cum_performance,file = "3_cum_cumulative_return.csv")
+write.csv(cumu_quarterly_3_cum_performance,file = "6_mean_cumulative_return.csv")
 
-charts.TimeSeries(cumu_quarterly_3_cum_performance,auto.grid = TRUE,xlab = "Time",ylab = "Cumulative Return", main = "3_mean_Cumulative Return Plot")
+#charts.TimeSeries(cumu_quarterly_3_cum_performance,auto.grid = TRUE,xlab = "Time",ylab = "Cumulative Return", main = "3_mean_Cumulative Return Plot")
 
 ```
