@@ -20,12 +20,15 @@ library(data.table)
 library(ggplot2)
 library(tibble)
 ```
+
 ```{r}
 load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
 ```
 
 ## Lewellen
+
 ### weighted_result_quarterly_6_cum_20
+
 ```{r}
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
 
@@ -59,6 +62,7 @@ write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Seme
 ```
 
 ### weighted_result_quarterly_3_cum_20
+
 ```{r}
 # No ym Index
 t4 <- weighted_result_quarterly_3_cum_20 %>% 
@@ -89,8 +93,8 @@ write.csv(RET_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semeste
 write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_6_cum_20.csv")
 ```
 
-
 ### weighted_result_quarterly_6_mean_20
+
 ```{r}
 t4 <- weighted_result_quarterly_6_mean_20 %>% 
   rownames_to_column()
@@ -120,8 +124,8 @@ write.csv(RET_quarterly_6_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semest
 write.csv(weight_quarterly_6_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_6_mean_20.csv")
 ```
 
-
 ### weighted_result_quarterly_3_mean_20
+
 ```{r}
 t4 <- weighted_result_quarterly_3_mean_20 %>% 
   rownames_to_column()
@@ -151,10 +155,10 @@ write.csv(RET_quarterly_3_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semest
 write.csv(weight_quarterly_3_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_3_mean_20.csv")
 ```
 
-
-
 ## VAR
+
 ### weighted_result_quarterly_5_var_20
+
 ```{r}
 t4 <- weighted_result_quarterly_5_var_20 %>% 
   rownames_to_column()
@@ -184,8 +188,8 @@ write.csv(RET_quarterly_5_var_20, "/Users/kojimadamsimith/Desktop/Summer Semeste
 write.csv(weight_quarterly_5_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_5_var_20.csv")
 ```
 
-
 ### weighted_result_quarterly_3_var_20
+
 ```{r}
 t4 <- weighted_result_quarterly_3_var_20 %>% 
   rownames_to_column()
@@ -215,29 +219,10 @@ write.csv(RET_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semeste
 write.csv(weight_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_3_var_20.csv")
 ```
 
-
-
-
-
 ## Test
+
+
 ```{r}
-check_time <- DS.monthly %>% 
-  distinct(ym) %>% 
-  filter(ym > "1983-11-01") %>% 
-  select(ym) %>% 
-  arrange(ym) %>% 
-  ungroup
-
-test <- weight_quarterly_6_mean_20 %>% 
-  rename(ym = rowname)
-
-test$ym <- as.Date(test$ym)
-
-check <- check_time %>% 
-  left_join(test, by = "ym") %>% 
-  fill()
-
-
 # Change the data format
 
 t4 <- weighted_result_quarterly_6_mean_20 %>% 
@@ -271,6 +256,11 @@ print(mean(t9$RET))
 print(sd(t9$RET))
 print(mean(t9$RET)/sd(t9$RET))
 
+ggplot(t9, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_6_mean_20")
+
 
 # Turnover
 
@@ -297,4 +287,3 @@ print(sum(Effectiv_N$sigma_i)/length(Effectiv_N$ym))
 
 
 ```
-
