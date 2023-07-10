@@ -78,7 +78,8 @@ selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS
    missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
    top_20_stock_id<- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
  }
-selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+
+#selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
 
 
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
@@ -104,11 +105,10 @@ tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,ris
 weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
 
 
-weights_df <- as.data.table(weights_df)
+#weights_df <- as.data.table(weights_df)
 
 rm(cov_mat_month)
 colnames(weights_df) = top_20_stock_id
-
 rownames(weights_df) = dates[1]
 
 weights_df_final = weights_df
@@ -153,29 +153,22 @@ for (date in dates[2:length(dates)]){
     tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
   
   weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
-
   colnames(weights_df) = top_20_stock_id
   rownames(weights_df) = date
-  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
-
-   colnames(weights_df) = top_20_stock_id
-   rownames(weights_df) = date
-  
-  weights_df <- as.data.table(weights_df)
-  rm(cov_mat_month)
-  
   
   weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
   
   er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
   rownames(er_sd_df) = date
   er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
   }
   else{
     print(date)
     print("- negative perfomance.")
     
   }
+  rm(cov_mat_month)
 }
 
 ```
