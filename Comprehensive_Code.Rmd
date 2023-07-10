@@ -78,7 +78,7 @@ panel_reduced_lnMV <- panel_reduced_lnMV[count_table[N>12]$Id]
 panel_reduced_lnMV <- panel_reduced_lnMV[, Log_MV := log(MV.USD)]
 
 panel_reduced_lnMV <- panel_reduced_lnMV %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, Log_MV)
+  select(Id, ym, MV.USD, RET.USD, Log_MV)
 ```
 
 
@@ -149,7 +149,7 @@ panel_reduced_val <- panel_reduced_val[,`C/Pm` := WC04860/(MV*1000)]
 ```{r}
 panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
 panel_reduced_val <- panel_reduced_val %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, `B/M`,`B/Mm`,  `E/P`, `E/Pm`, `C/P`, `C/Pm`,  `EBITDA/EV`)
+  select(Id, ym, MV.USD, RET.USD, `B/M`,`B/Mm`,  `E/P`, `E/Pm`, `C/P`, `C/Pm`,  `EBITDA/EV`)
 ```
 
 
@@ -169,7 +169,7 @@ panel_reduced_yield <- panel_reduced_yield[count_table[N>12]$Id]
 #Dividend Yield = Dividends Per Share / Price Per Share
 panel_reduced_yield <- panel_reduced_yield[, DY:= WC05101/WC05001*100]
 panel_reduced_yield <- panel_reduced_yield %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, DY)
+  select(Id, ym, MV.USD, RET.USD, DY)
 ```
 
 ### 2.4 Quality 
@@ -190,7 +190,7 @@ panel_reduced_ROE <- panel_reduced_ROE[count_table[N>12]$Id]
 panel_reduced_ROE <- panel_reduced_ROE[,Book_Equity:=WC03501+WC03263]
 panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC01551/Book_Equity] 
 
-panel_reduced_ROE <- panel_reduced_ROE %>% dplyr::select(Id, ym, MV.USD, RET.USD, ROE)
+panel_reduced_ROE <- panel_reduced_ROE %>% select(Id, ym, MV.USD, RET.USD, ROE)
 
 ```
 
@@ -208,7 +208,7 @@ panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
 #earnings before extraordinary items (WC01551) divided by total assets (WC02999)
 panel_reduced_ROA <- panel_reduced_ROA[,ROA:=WC01551/WC02999] 
 
-panel_reduced_ROA <- panel_reduced_ROA %>% dplyr::select(Id, ym, MV.USD, RET.USD, ROA)
+panel_reduced_ROA <- panel_reduced_ROA %>% select(Id, ym, MV.USD, RET.USD, ROA)
 ```
 
 #### 2.4.3 GP/A
@@ -225,7 +225,7 @@ panel_reduced_GPA <- panel_reduced_GPA[count_table[N>12]$Id]
 #gross profits-to-assets is net sales or revenues (WC01001) minus cost of goods sold (WC01501) both divided by total assets (WC02999)
 panel_reduced_GPA <- panel_reduced_GPA[,`GP/A`:=(WC01001-WC01501)/WC02999] 
 
-panel_reduced_GPA <- panel_reduced_GPA %>% dplyr::select(Id, ym, MV.USD, RET.USD, `GP/A`)
+panel_reduced_GPA <- panel_reduced_GPA %>% select(Id, ym, MV.USD, RET.USD, `GP/A`)
 ```
 
 #### 2.4.4 OP/BE
@@ -243,7 +243,7 @@ panel_reduced_OPBE <- panel_reduced_OPBE[count_table[N>12]$Id]
 panel_reduced_OPBE <- panel_reduced_OPBE[,Book_Equity:=WC03501+WC03263]
 panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101-WC01251)/Book_Equity] 
 
-panel_reduced_OPBE <- panel_reduced_OPBE %>% dplyr::select(Id, ym, MV.USD, RET.USD, `OP/BE`)
+panel_reduced_OPBE <- panel_reduced_OPBE %>% select(Id, ym, MV.USD, RET.USD, `OP/BE`)
 ```
 
 
@@ -271,7 +271,7 @@ panel_reduced_NOA <- panel_reduced_NOA %>%
   mutate(NOA = Operating_Asset - Operating_Liabilit) %>% 
   ungroup
 
-panel_reduced_NOA <- panel_reduced_NOA %>% dplyr::select(Id, ym, MV.USD, RET.USD, NOA)
+panel_reduced_NOA <- panel_reduced_NOA %>% select(Id, ym, MV.USD, RET.USD, NOA)
 ```
 
 #### 2.4.6 OA
@@ -308,7 +308,7 @@ panel_reduced_OA <- panel_reduced_OA %>%
   mutate(OA = Change_in_Ope_Wor_Cap - Lagged_Dep) %>% 
   ungroup
 
-panel_reduced_OA <- panel_reduced_OA %>% dplyr::select(Id, ym, MV.USD, RET.USD, OA)
+panel_reduced_OA <- panel_reduced_OA %>% select(Id, ym, MV.USD, RET.USD, OA)
 ```
 
 ### 2.5 Low Volatility
@@ -343,8 +343,8 @@ resid.fun <- . %>% as.data.frame %>% lm %>% .$residuals
 coef_36 <- panel_reduced %>%
   group_by(Id) %>%
   do(cbind(
-           dplyr::select(., ym, RET.USD),
-           coef = dplyr::select(., Ex_RET.USD, MRP.USD) %>%
+           select(., ym, RET.USD),
+           coef = select(., Ex_RET.USD, MRP.USD) %>%
              rollapplyr(36, coef.fun, by.column = FALSE, fill = NA)
            )) %>%
   ungroup
@@ -353,8 +353,8 @@ coef_36 <- panel_reduced %>%
 resid_36 <- panel_reduced %>%
   group_by(Id) %>%
   do(cbind(
-           dplyr::select(., ym, RET.USD),
-           resid = dplyr::select(., Ex_RET.USD, MRP.USD) %>%
+           select(., ym, RET.USD),
+           resid = select(., Ex_RET.USD, MRP.USD) %>%
              rollapplyr(36, resid.fun, by.column = FALSE, fill = NA)
            )) %>%
   ungroup
@@ -370,13 +370,13 @@ count_table <- panel_reduced_beta_3[,.N,by=Id]
 panel_reduced_beta_3 <- panel_reduced_beta_3[count_table[N>12]$Id]
 
 panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
-  dplyr::select(Id, ym, MV.USD) %>% 
+  select(Id, ym, MV.USD) %>% 
   full_join(coef_36, by = c("Id", "ym"))
 
 names(panel_reduced_beta_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
 
 panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, Beta_3)
+  select(Id, ym, MV.USD, RET.USD, Beta_3)
 ```
 
 #### 2.5.2 Sigma_3
@@ -390,14 +390,14 @@ count_table <- panel_reduced_sigma_3[,.N,by=Id]
 panel_reduced_sigma_3<- panel_reduced_sigma_3[count_table[N>12]$Id]
 
 panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
-  dplyr::select(Id, ym, MV.USD) %>% 
+  select(Id, ym, MV.USD) %>% 
   full_join(resid_36, by = c("Id", "ym")) %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, `resid.36`)
+  select(Id, ym, MV.USD, RET.USD, `resid.36`)
 
 names(panel_reduced_sigma_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Sigma_3")
 
 panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, Sigma_3)
+  select(Id, ym, MV.USD, RET.USD, Sigma_3)
 ```
 
 #### 2.5.3 SD
@@ -408,7 +408,7 @@ panel_reduced_sd <- panel_reduced %>%
   group_by(Id)%>%
   mutate(SD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
   ungroup %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, SD)
+  select(Id, ym, MV.USD, RET.USD, SD)
 ```
 
 ### 2.6 liquidity
@@ -438,7 +438,7 @@ panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
 panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
 panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
 
-panel_reduced_TO <- panel_reduced_TO %>% dplyr::select(Id, ym, MV.USD, RET.USD, `T/O`)
+panel_reduced_TO <- panel_reduced_TO %>% select(Id, ym, MV.USD, RET.USD, `T/O`)
 ```
 
 ### 2.7 Growth
@@ -460,7 +460,7 @@ panel_reduced_eps <- panel_reduced_eps %>%
   ungroup
 
 panel_reduced_eps <- panel_reduced_eps %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
 
 names(panel_reduced_eps) <- c("Id","ym","MV.USD","RET.USD", "EPS")
 ```
@@ -483,7 +483,7 @@ panel_reduced_sps <- panel_reduced_sps %>%
   ungroup
 
 panel_reduced_sps <- panel_reduced_sps %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
+  select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
 
 names(panel_reduced_sps) <- c("Id","ym","MV.USD","RET.USD", "SPS")
 ```
@@ -524,7 +524,7 @@ panel_reduced_momentum <- panel_reduced_momentum[,Mom_12_2:=(((1+Before2)*(1+Bef
 
 
 panel_reduced_momentum <- panel_reduced_momentum %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, Mom_12_2)
+  select(Id, ym, MV.USD, RET.USD, Mom_12_2)
 
 ```
 
@@ -548,7 +548,7 @@ panel_reduced_rsi[, RS := average_gain/average_loss]
 panel_reduced_rsi[, RSI := 100 - (100/(1+RS))]
 
 panel_reduced_rsi <- panel_reduced_rsi %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, RSI)
+  select(Id, ym, MV.USD, RET.USD, RSI)
 ```
 
 #### 2.8.3 Historical Alpha
@@ -562,13 +562,13 @@ count_table <- panel_reduced_alpha_3[,.N,by=Id]
 panel_reduced_alpha_3 <- panel_reduced_alpha_3[count_table[N>12]$Id]
 
 panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
-  dplyr::select(Id, ym, MV.USD) %>% 
+  select(Id, ym, MV.USD) %>% 
   full_join(coef_36, by = c("Id", "ym"))
 
 names(panel_reduced_alpha_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
 
 panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, Alpha_3)
+  select(Id, ym, MV.USD, RET.USD, Alpha_3)
 ```
 
 
@@ -606,7 +606,7 @@ panel_reduced_inv <- panel_reduced_inv %>%
   ungroup
 
 panel_reduced_inv <- panel_reduced_inv %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, AG)
+  select(Id, ym, MV.USD, RET.USD, AG)
 ```
 
 #### 2.9.3 NSI
@@ -654,7 +654,7 @@ panel_reduced_NSI[month==8, NSI:=lag_8, by = "Id"]
 panel_reduced_NSI[month==7, NSI:=lag_7, by = "Id"]
 
 panel_reduced_NSI <- panel_reduced_NSI %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, `NSI`)
+  select(Id, ym, MV.USD, RET.USD, `NSI`)
 ```
 
 
@@ -701,7 +701,7 @@ panel_reduced_CEI <- panel_reduced_CEI[, CEI:= na.locf(CEI_a, na.rm=FALSE)]
 
 
 panel_reduced_CEI <- panel_reduced_CEI %>%
-  dplyr::select(Id, ym, MV.USD, RET.USD, `CEI`)
+  select(Id, ym, MV.USD, RET.USD, `CEI`)
 ```
 
 #### 2.9.5 I/A
@@ -725,7 +725,7 @@ panel_reduced_IA <- panel_reduced_IA %>%
   ungroup
 
 panel_reduced_IA <- panel_reduced_IA %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, `I/A`)
+  select(Id, ym, MV.USD, RET.USD, `I/A`)
 ```
 
 
@@ -744,17 +744,17 @@ panel_reduced_MRP[, MRP.USD:=MRET.USD-DTB6]
 
 Double_Sort_Set <- panel_reduced_MRP %>% 
   full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3)%>%
+  select(Id, ym, year, month, RET.USD, Beta_3)%>%
   full_join(panel_reduced_MV, by = c("Id", "ym", "RET.USD")) %>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3)%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3)%>% 
   full_join(panel_reduced_val, by = c("Id", "ym","RET.USD"))%>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`)%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`)%>% 
   full_join(panel_reduced_ROE, by = c("Id", "ym","RET.USD"))%>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE)%>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE)%>% 
   full_join(panel_reduced_inv, by = c("Id", "ym","RET.USD"))%>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
+  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
   full_join(panel_reduced_momentum, by = c("Id", "ym","RET.USD"))%>% 
-  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
+  select(Id, ym, year, month, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
 
 
 Double_Sort_Set[,hcjun := ifelse(month>=7,year,year-1)]
@@ -938,26 +938,6 @@ portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SM
 
 portfolio_returns_SMB[,t.test(SMB)]
 ```
-
-```{r}
-# save a table that contain SMB, etc.
-
-
-portfolio_returns_SMB_reduced <- portfolio_returns_SMB %>% dplyr::select(c("ym","SMB")) 
-portfolio_returns_HML_reduced <- portfolio_returns_HML %>% dplyr::select(c("ym","HML")) 
-portfolio_returns_CMA_reduced <- portfolio_returns_CMA %>% dplyr::select(c("ym","CMA")) 
-portfolio_returns_RMW_reduced <- portfolio_returns_RMW %>% dplyr::select(c("ym","RMW")) 
-portfolio_returns_WML_reduced <- portfolio_returns_WML %>% dplyr::select(c("ym","WML")) 
-
-StyleAnalysis_FF_and_Mom_Set <- full_join(portfolio_returns_SMB_reduced,portfolio_returns_HML_reduced,by="ym") %>% 
-  full_join(.,portfolio_returns_CMA_reduced,by="ym") %>%  
-  full_join(.,portfolio_returns_RMW_reduced,by="ym") %>% 
-  full_join(.,portfolio_returns_WML_reduced,by="ym") %>% 
-  filter(!is.na(SMB)&!is.na(HML)&!is.na(CMA)&!is.na(RMW)&!is.na(WML))
-
-save(StyleAnalysis_FF_and_Mom_Set,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Style Analysis/StyleAnalysis_FF_and_Mom_Set.Rdata")
-```
-
 
 ## 4. Univariate Sort (Equally Weighted)
 
@@ -2658,5 +2638,4 @@ q
 ```
 
 
-## 10. Tangent Portfolio(weighting and rebalancing)
 

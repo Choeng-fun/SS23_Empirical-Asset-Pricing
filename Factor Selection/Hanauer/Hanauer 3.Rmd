@@ -19,7 +19,7 @@ library(janitor)
 ```
 
 ```{r}
-load("../Univariate_Sort_Set.RData")
+load("../..//Univariate_Sort_Set.RData")
 Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
 ```
 
@@ -83,7 +83,7 @@ panel_a
 ```
 
 ```{r}
-panel_b <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV"))
+panel_b <- fm(Univariate_Sort_Set_big_small, c("Beta_3", "B/M", "OP/BE", "AG", "MV", "Mom_12_2"))
 panel_b
 ```
 
@@ -134,11 +134,6 @@ coef_cross_sectional <- result_final$reg
 panel_j
 ```
 
-```{r}
-result_final_3 <- fm(Univariate_Sort_Set_big_small, c("Log_MV", "Alpha_3", "RSI"))
-result_final_3
-```
-
 ## Big Stocks
 
 ```{r}
@@ -154,5 +149,5 @@ panel_k2
 ## Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
 
 ```{r}
-load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data_Lewellen.RData")
+# load("~/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data_Lewellen.RData")
 ```

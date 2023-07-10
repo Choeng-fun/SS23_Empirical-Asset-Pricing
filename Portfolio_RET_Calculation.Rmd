@@ -1,0 +1,481 @@
+---
+title: "Portfolio_RET_Calculation"
+author: "Yasu"
+date: "2023-07-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(ggplot2)
+library(tibble)
+```
+
+## Change the data format
+### weighted_result_quarterly_6_mean_20
+```{r}
+weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### weighted_result_quarterly_3_mean_20
+```{r}
+weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### weighted_result_quarterly_6_cum_20
+```{r}
+weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+
+### weighted_result_quarterly_3_cum_20
+```{r}
+weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### weighted_result_quarterly_5_var_20
+```{r}
+weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_5_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+
+
+### weighted_result_quarterly_3_var_20
+```{r}
+weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+
+## Performance
+###quarterly_6_mean_20
+```{r}
+
+t5 <- weighted_result_quarterly_6_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.yearmon(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_6_mean_performance$RET))
+print(sd(quarterly_6_mean_performance$RET))
+print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET))
+
+a <- mean(quarterly_6_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+# Annualization
+quarterly_6_mean_performance_annu <- quarterly_6_mean_performance %>% 
+  mutate(year = year(ym)) %>% 
+  group_by(year) %>% 
+  mutate(RET_0 = 0.01 * RET) %>% 
+  mutate(RET_Annual = prod(1+RET_0)-1) %>% 
+  ungroup
+
+quarterly_6_mean_performance_annu <- quarterly_6_mean_performance_annu %>% 
+  select(year, RET_Annual) %>% 
+  distinct(year, RET_Annual, .keep_all = TRUE)
+  
+print(mean(quarterly_6_mean_performance_annu$RET_Annual))
+print(sd(quarterly_6_mean_performance_annu$RET_Annual))
+
+
+# Cumulative Return
+quarterly_6_mean_performance_cum <- quarterly_6_mean_performance %>% 
+  mutate(RET_0 = RET*0.01)
+
+%>% 
+  Return.cumulative(RET_0,geometric = TRUE)
+
+
+Return.cumulative(quarterly_6_mean_performance$RET, geometric = TRUE)
+
+# Plot
+ggplot(quarterly_6_mean_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_6_mean_20")
+
+
+# Turnover
+Turnover_6_mean <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_r_6_mean <- Turnover %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_r$sigma))
+print(n_distinct(Turnover_r$ym))
+print(sum(Turnover_r$sigma)/n_distinct(Turnover_r$ym)/2)
+
+
+# Effective N 
+Effective_N_6_mean <- t7 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
+
+
+```
+
+###quarterly_6_cum_20
+```{r}
+
+t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_6_cum_performance$RET))
+print(sd(quarterly_6_cum_performance$RET))
+print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+
+# Plot
+ggplot(quarterly_6_cum_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_6_cum_20")
+
+
+# Turnover
+Turnover_6_cum <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_6_cum <- Turnover_6_cum %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_cum$sigma))
+print(n_distinct(Turnover_6_cum$ym))
+print(sum(Turnover_6_cum$sigma)/n_distinct(Turnover_6_cum$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_6_cum <- t7 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_6_cum$sigma_i)/n_distinct(Effectiv_N_6_cum$ym))
+```
+
+###quarterly_3_mean_20
+```{r}
+t5 <- weighted_result_quarterly_3_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_mean_performance$RET))
+print(sd(quarterly_3_mean_performance$RET))
+print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
+
+
+#Plot
+ggplot(quarterly_3_mean_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_3_mean_20")
+
+
+# Turnover
+Turnover_3_mean <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_3_mean <- Turnover_3_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_mean$sigma))
+print(n_distinct(Turnover_3_mean$ym))
+print(sum(Turnover_3_mean$sigma)/n_distinct(Turnover_3_mean$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_3_mean <- t7 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_mean$sigma_i)/n_distinct(Effectiv_N_3_mean$ym))
+```
+
+
+###quarterly_3_cum_20
+```{r}
+t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_cum_performance$RET))
+print(sd(quarterly_3_cum_performance$RET))
+print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+ggplot(quarterly_3_cum_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_3_cum_20")
+```
+
+###quarterly_5_var_20
+```{r}
+t5 <- weighted_result_quarterly_5_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_5_var_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_5_var_performance$RET))
+print(sd(quarterly_5_var_performance$RET))
+print(mean(quarterly_5_var_performance$RET)/sd(quarterly_5_var_performance$RET))
+
+ggplot(quarterly_5_var_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_5_var_20")
+```
+
+###quarterly_3_var_20
+```{r}
+t5 <- weighted_result_quarterly_3_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_var_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_var_performance$RET))
+print(sd(quarterly_3_var_performance$RET))
+print(mean(quarterly_3_var_performance$RET)/sd(quarterly_3_var_performance$RET))
+
+ggplot(quarterly_3_var_performance, aes(x = ym, y = RET)) +
+  geom_line() +
+  labs(x = "ym", y = "Return") +
+  ggtitle("quarterly_3_var_20")
+```
+
+
+## Market Return
+```{r}
+load("../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+```{r}
+Market_RET <- Univariate_Sort_Set_big_small %>% 
+  select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup %>% 
+  arrange(ym, Id)
+
+Market_RET_ym <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+
+Market_RET_ym$ym <- as.yearmon(Market_RET_ym$ym)
+
+# Annualization
+Market_RET_y <- Market_RET_ym %>% 
+  mutate(year = year(ym)) %>% 
+  group_by(year) %>% 
+  mutate(RET_0 = 0.01 * Market_RET) %>% 
+  mutate(RET_Annual = prod(1+RET_0)-1) %>% 
+  ungroup
+
+Market_RET_yy <- Market_RET_y %>% 
+  select(year, RET_Annual) %>% 
+  distinct(year, RET_Annual, .keep_all = TRUE)
+
+print(mean(Market_RET_yy$RET_Annual))
+print(sd(Market_RET_yy$RET_Annual))
+print(mean(Market_RET_yy$RET_Annual)/sd(Market_RET_yy$RET_Annual))
+```
+
+## Effective N
+```{r}
+
+
+```
+
