@@ -9,13 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(lubridate)
+library(dplyr)
+```
 
 
 ## Change the data format
-### weighted_result_quarterly_6_mean_20
+### weighted_result_quarterly_6_cum_20
 ```{r}
 
-weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
+weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_6_cum_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
   select(ym, everything()) %>%
@@ -28,7 +32,7 @@ weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_6_cum_2
 
 ###quarterly_3_mean_20
 ```{r}
-t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
+t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
 
 class(t5$ym)
@@ -44,14 +48,43 @@ t7 <- t6 %>%
   filter(!is.na(weight) & !is.na(RET.USD)) %>% 
   arrange(ym)
 
-quarterly_3_cum_performance <- t7 %>% 
+quarterly_6_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
   ungroup
 
-print(mean(quarterly_3_cum_performance$RET))
-print(sd(quarterly_3_cum_performance$RET))
-print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+# monthly characteristic
+print(mean(quarterly_6_cum_performance$RET))
+print(sd(quarterly_6_cum_performance$RET))
+print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+print("annual")
+
+#convert monthly data to annual date
+
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+quarterly_6_cum_performance$RET <- quarterly_6_cum_performance$RET/100
+
+annual_returns_xts <- period.apply(quarterly_6_cum_performance, endpoints(quarterly_6_cum_performance, "years"), FUN = function(x) prod(1 + x) - 1)
+
+print(mean(annual_returns_xts$RET))
+print(sd(annual_returns_xts$RET))
+print(mean(annual_returns_xts$RET)/sd(annual_returns_xts$RET))
+```
+
+
+```{r}
+#annual_6_cum_performance <- quarterly_6_cum_performance %>%
+#  mutate(year=year(dates), RET.USD_PLUS_1=RET + 1) %>%
+#  group_by(year) %>%
+#    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+#  ungroup() %>%
+#  mutate(ANNUAL_RET.USD=(PROD-1)*100)
+
+write.csv(annual_6_cum_performance,file = "annual_6_cum_cumulative_return.csv")
+
+mean(annual_6_cum_performance$ANNUAL_RET.USD)
 
 ```
 
@@ -61,21 +94,26 @@ print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
 #annualized
 #converted to time series data
 
-quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
 
-tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
-rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
 
-annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
-annual_tseri_quarterly_3_cum_performance
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+annual_tseri_quarterly_6_cum_performance <- Return.annualized(tseri_quarterly_6_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_cum_performance
+
+StdDev.annualized(tseri_quarterly_6_cum_performance)
 
 ```
 ```{r}
 # cumulative return
-cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
-rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+cumu_quarterly_6_cum_performance <- cumsum(tseri_quarterly_6_cum_performance)
+rownames(cumu_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
 
-write.csv(cumu_quarterly_3_cum_performance,file = "6_cum_cumulative_return.csv")
+write.csv(cumu_quarterly_6_cum_performance,file = "6_cum_cumulative_return.csv")
 
 #charts.TimeSeries(cumu_quarterly_3_cum_performance,auto.grid = TRUE,xlab = "Time",ylab = "Cumulative Return", main = "3_mean_Cumulative Return Plot")
 

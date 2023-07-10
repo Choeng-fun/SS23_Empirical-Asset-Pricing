@@ -38,6 +38,7 @@ library(data.table)
 library(ggplot2)
 library(tibble)
 library(PerformanceAnalytics)
+library(xts)
 ```
 
 
@@ -81,6 +82,18 @@ quarterly_3_mean_performance <- t7 %>%
 print(mean(quarterly_3_mean_performance$RET))
 print(sd(quarterly_3_mean_performance$RET))
 print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
+
+#convert monthly data to annual date
+
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+quarterly_3_mean_performance$RET <- quarterly_3_mean_performance$RET/100
+
+annual_returns_xts <- period.apply(quarterly_3_mean_performance, endpoints(quarterly_3_mean_performance, "years"), FUN = function(x) prod(1 + x) - 1)
+
+print(mean(annual_returns_xts$RET))
+print(sd(annual_returns_xts$RET))
+print(mean(annual_returns_xts$RET)/sd(annual_returns_xts$RET))
 ```
 
 
@@ -132,8 +145,20 @@ quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performan
 tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
 rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
 
+# Compute the annualized mean
 annual_tseri_quarterly_3_mean_performance <- Return.annualized(tseri_quarterly_3_mean_performance,scale = 12, geometric = FALSE)
 annual_tseri_quarterly_3_mean_performance
+
+# Compute the annualized standard deviation
+StdDev.annualized(sp500_returns)
+
+# Compute the annualized Sharpe ratio
+ann_sharpe <- Return.annualized(sp500_returns) / StdDev.annualized(sp500_returns)
+
+# Convert monthly data to annual data
+annual_returns_xts <- period.apply(quarterly_3_mean_performance, endpoints(quarterly_3_mean_performance, "years"), FUN = function(x) prod(1 + x) - 1)
+
+
 
 ```
 ```{r}
@@ -141,7 +166,9 @@ annual_tseri_quarterly_3_mean_performance
 cumu_quarterly_3_mean_performance <- cumsum(tseri_quarterly_3_mean_performance)
 rownames(cumu_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
 
-charts.TimeSeries(cumu_quarterly_3_mean_performance,auto.grid = TRUE,xlab = "Time",ylab = "Cumulative Return", main = "3_mean_Cumulative Return Plot")
+write.csv(cumu_quarterly_3_mean_performance,file = "../Performance/visual_annual&cumulative_result/3_mean_cumulative_return.csv")
+
+#charts.TimeSeries(cumu_quarterly_3_mean_performance,auto.grid = TRUE,xlab = #"Time",ylab = "Cumulative Return", main = "3_mean_Cumulative Return Plot")
 
 ```
 
