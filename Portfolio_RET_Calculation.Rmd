@@ -61,9 +61,6 @@ write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Seme
 ### weighted_result_quarterly_3_cum_20
 ```{r}
 # No ym Index
-DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
-
-
 t4 <- weighted_result_quarterly_3_cum_20 %>% 
   rownames_to_column()
 
