@@ -134,11 +134,6 @@ coef_cross_sectional <- result_final$reg
 panel_j
 ```
 
-```{r}
-result_final_3 <- fm(Univariate_Sort_Set_big_small, c("Log_MV", "Alpha_3", "RSI"))
-result_final_3
-```
-
 ## Big Stocks
 
 ```{r}
