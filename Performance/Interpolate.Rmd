@@ -1,0 +1,34 @@
+---
+title: "Interpolation"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(zoo)
+library(dplyr)
+library(lubridate)
+library(tidyverse)
+```
+
+```{r}
+load("../Weighting/Weighted_Result/weighted_result_quarterly_6_mean_20.RData")
+```
+
+```{r}
+weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), max(ym) %m+% months(1), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
