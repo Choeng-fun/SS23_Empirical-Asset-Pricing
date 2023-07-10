@@ -76,7 +76,7 @@ selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS
 
  if(any(is.na(selected_past_data_df))){
    missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
-   top_20_stock_id_NoNA <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+   top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
  }
 selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
 
