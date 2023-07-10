@@ -736,17 +736,12 @@ panel_reduced_MRP[, ExRET.USD:=RET.USD-DTB6]
 panel_reduced_MRP[, MRP.USD:=MRET.USD-DTB6]
 
 Double_Sort_Set <- panel_reduced_MRP %>% 
-  full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
-  select(Id, ym, year, month, RET.USD, Beta_3)%>%
-  full_join(panel_reduced_MV, by = c("Id", "ym", "RET.USD")) %>% 
-  select(Id, ym, year, month, RET.USD, Beta_3)%>% 
-  full_join(panel_reduced_val, by = c("Id", "ym","RET.USD"))%>% 
-  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`)%>% 
-  full_join(panel_reduced_ROE, by = c("Id", "ym","RET.USD"))%>% 
-  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE)%>% 
-  full_join(panel_reduced_inv, by = c("Id", "ym","RET.USD"))%>% 
-  select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
-  full_join(panel_reduced_momentum, by = c("Id", "ym","RET.USD"))%>% 
+  full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD", "MV.USD")) %>% 
+  full_join(panel_reduced_MV, by = c("Id", "ym", "RET.USD","MV.USD"))%>%
+  full_join(panel_reduced_val, by = c("Id", "ym","year", "month","RET.USD","MV.USD"))%>% 
+  full_join(panel_reduced_ROE, by = c("Id", "ym","RET.USD","MV.USD"))%>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym","RET.USD","MV.USD"))%>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym","RET.USD","MV.USD"))%>% 
   select(Id, ym, year, month, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
 
 

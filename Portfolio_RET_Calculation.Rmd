@@ -152,15 +152,7 @@ print(mean(quarterly_6_mean_performance_annu$RET_Annual))
 print(sd(quarterly_6_mean_performance_annu$RET_Annual))
 
 
-# Cumulative Return
-quarterly_6_mean_performance_cum <- quarterly_6_mean_performance %>% 
-  mutate(RET_0 = RET*0.01)
 
-%>% 
-  Return.cumulative(RET_0,geometric = TRUE)
-
-
-Return.cumulative(quarterly_6_mean_performance$RET, geometric = TRUE)
 
 # Plot
 ggplot(quarterly_6_mean_performance, aes(x = ym, y = RET)) +
@@ -454,15 +446,30 @@ Market_RET_ym <- Market_RET %>%
   group_by(ym) %>% 
   summarise(Market_RET = mean(MRET))
 
-Market_RET_ym$ym <- as.yearmon(Market_RET_ym$ym)
+Market_RET_ym <- Market_RET_ym %>% 
+  mutate(Market_RET = Market_RET*0.01)
 
+mean_month <- mean(Market_RET_ym$Market_RET)
+mean_year <- (1+mean_month)^12-1
+
+print(mean_month)
+print(mean_year)
+
+```
+
+## Style Analysis
+
+
+
+
+```{r}
 # Annualization
 Market_RET_y <- Market_RET_ym %>% 
   mutate(year = year(ym)) %>% 
   group_by(year) %>% 
-  mutate(RET_0 = 0.01 * Market_RET) %>% 
-  mutate(RET_Annual = prod(1+RET_0)-1) %>% 
-  ungroup
+  mutate(RET_0 = 0.01 * Market_RET)
+
+mean(Market_RET_y$RET_0)
 
 Market_RET_yy <- Market_RET_y %>% 
   select(year, RET_Annual) %>% 
@@ -473,7 +480,7 @@ print(sd(Market_RET_yy$RET_Annual))
 print(mean(Market_RET_yy$RET_Annual)/sd(Market_RET_yy$RET_Annual))
 ```
 
-## Effective N
+
 ```{r}
 
 
