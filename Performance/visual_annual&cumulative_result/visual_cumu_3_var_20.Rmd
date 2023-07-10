@@ -65,6 +65,19 @@ quarterly_3_cum_performance <- t7 %>%
 print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
 print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+
+#convert monthly data to annual date
+
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+quarterly_3_cum_performance$RET <- quarterly_3_cum_performance$RET/100
+
+annual_returns_xts <- period.apply(quarterly_3_cum_performance, endpoints(quarterly_3_cum_performance, "years"), FUN = function(x) prod(1 + x) - 1)
+
+print(mean(annual_returns_xts$RET))
+print(sd(annual_returns_xts$RET))
+print(mean(annual_returns_xts$RET)/sd(annual_returns_xts$RET))
+
 ```
 
 
