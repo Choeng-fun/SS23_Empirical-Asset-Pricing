@@ -92,9 +92,6 @@ write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Seme
 
 ### weighted_result_quarterly_6_mean_20
 ```{r}
-DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
-
-
 t4 <- weighted_result_quarterly_6_mean_20 %>% 
   rownames_to_column()
 
@@ -126,7 +123,32 @@ write.csv(weight_quarterly_6_mean_20, "/Users/kojimadamsimith/Desktop/Summer Sem
 
 ### weighted_result_quarterly_3_mean_20
 ```{r}
-# No ym Index
+t4 <- weighted_result_quarterly_3_mean_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_3_mean_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_3_mean_20 <- t4
+
+write.csv(RET_quarterly_3_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_3_mean_20.csv")
+
+write.csv(weight_quarterly_3_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_3_mean_20.csv")
 ```
 
 
@@ -193,4 +215,86 @@ write.csv(RET_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semeste
 write.csv(weight_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_3_var_20.csv")
 ```
 
+
+
+
+
+## Test
+```{r}
+check_time <- DS.monthly %>% 
+  distinct(ym) %>% 
+  filter(ym > "1983-11-01") %>% 
+  select(ym) %>% 
+  arrange(ym) %>% 
+  ungroup
+
+test <- weight_quarterly_6_mean_20 %>% 
+  rename(ym = rowname)
+
+test$ym <- as.Date(test$ym)
+
+check <- check_time %>% 
+  left_join(test, by = "ym") %>% 
+  fill()
+
+
+# Change the data format
+
+t4 <- weighted_result_quarterly_6_mean_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname)
+
+class(t6$ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  full_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t8 <- t7 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+t9 <- t8 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(t9$RET))
+print(sd(t9$RET))
+print(mean(t9$RET)/sd(t9$RET))
+
+
+# Turnover
+
+Ids <- t6 %>% 
+  distinct(Id)
+
+Ids_with_0_weight <-t7 %>% 
+  semi_join(Ids)
+
+Turnover <- t8 %>% 
+  arrange(Id, ym)
+
+
+# Effectiv N 
+Effectiv_N <- t8 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2))
+
+Effectiv_N <- Effectiv_N %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N$sigma_i)/length(Effectiv_N$ym))
+
+
+```
 
