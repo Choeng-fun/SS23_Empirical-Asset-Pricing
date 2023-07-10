@@ -537,6 +537,8 @@ Market_RET_ym <- Market_RET %>%
   group_by(ym) %>% 
   summarise(Market_RET = mean(MRET))
 
+write.csv(Market_RET_ym, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Market_RET.csv")
+
 Market_RET_ym <- Market_RET_ym %>% 
   mutate(Market_RET = Market_RET*0.01)
 
@@ -550,8 +552,30 @@ print(mean_year)
 
 ### Out Performance
 ```{r}
-quarterly_6_cum_performance
+annual_6_cum_cumulative_return <- annual_6_cum_cumulative_return %>% 
+  select(year, ANNUAL_RET.USD)
+
+
+
+out_performance <- annual_6_cum_cumulative_return %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD- ANNUAL_MKT_RET.USD)
+
+mean(out_performance$outperformance)
+
+mean(out_performance$ANNUAL_MKT_RET.USD)
 ```
+
+```{r}
+TE <- sd(out_performance$outperformance)
+print(TE)
+```
+
+```{r}
+IR <- mean(out_performance$outperformance)/TE
+print(IR)
+```
+
 
 
 
