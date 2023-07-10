@@ -174,7 +174,7 @@ if(any(is.na(selected_past_data_df))){
   else{
     print(date)
     print("- negative perfomance.")
-    
+
   }
 }
 

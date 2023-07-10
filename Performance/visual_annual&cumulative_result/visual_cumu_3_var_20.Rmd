@@ -1,0 +1,93 @@
+---
+title: "visual_cumu_3_var_20"
+author: "Yu"
+date: "2023-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(ggplot2)
+library(tibble)
+library(PerformanceAnalytics)
+```
+
+
+## Change the data format
+### weighted_result_quarterly_3_var_20
+```{r}
+
+weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+###quarterly_3_mean_20
+```{r}
+t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.yearmon(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_cum_performance$RET))
+print(sd(quarterly_3_cum_performance$RET))
+print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+```
+
+
+```{r}
+
+#annualized
+#converted to time series data
+
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+```
+```{r}
+# cumulative return
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+write.csv(cumu_quarterly_3_cum_performance,file = "3_var_cumulative_return.csv")
+
+#charts.TimeSeries(cumu_quarterly_3_cum_performance,auto.grid = TRUE,xlab = "Time",ylab = "Cumulative Return", main = "3_var_Cumulative Return Plot")
+
+```
