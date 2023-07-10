@@ -114,7 +114,7 @@ t5 <- weighted_result_quarterly_6_mean_20_complete %>%
 class(t5$ym)
 
 class(DS.monthly$ym)
-t5$ym <- as.Date(t5$ym)
+t5$ym <- as.yearmon(t5$ym)
 
 t6 <- DS.monthly %>%
   full_join(t5, by = c("Id", "ym")) %>% 
