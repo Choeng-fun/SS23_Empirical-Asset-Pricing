@@ -17,9 +17,9 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
-# install.packages("quadprog", repos="http://cran.rstudio.com")
-# install.packages("xts", repos="http://cloud.r-project.org")
-# install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
+#install.packages("quadprog", repos="http://cran.rstudio.com")
+#install.packages("xts", repos="http://cloud.r-project.org")
+#install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
 library(zoo)
 library(quadprog)
 library(IntroCompFinR)
@@ -27,10 +27,15 @@ library(tidyr)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
-library(data.table)
+#library(data.table)
+```
+
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
 ```
 
 ##(Test)convert the data frame to time series data
+
 ```{r}
 # Extract the required columns and rearrange the data
 monthly_3_cum_10 <- monthly_3_cum_10 %>%
@@ -45,117 +50,52 @@ class(time_series_return_df$ym)
 
 ```
 
-## convert the date type of ym to "Date"
 ```{r}
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
-DS.monthly$RET.USD <- DS.monthly$RET.USD/100
 ```
 
 
-##Convert date type to "date"in current dateframe
-```{r}
+##Convert date type in dateframe
 
+```{r}
 current_data_df <- monthly_3_cum_20
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
 
 ##Get date sequence
+
 ```{r}
+
 get_previous_three_year <- function(date) {
   year(date)<-year(date)-2
-  month(date) <- month(date)+1
   return(seq.Date(from = date, by = "month", length.out = 24))
 }
 
 ```
 
-## 2008.12 testing
+##sele
+
 ```{r}
-risk_free_rate <- 0.00
+risk_free_rate <- 0.02
 stock_ids <- unique(current_data_df$Id)
-certain_date <- as.Date("2008-12-01")
-class(certain_date)
-#get quarterly data
 dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
 
-
-## construct the first weighting
-top_20_stock_id = current_data_df[which(current_data_df$ym == certain_date),]$Id
-top_20_stock_id
-
-selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(certain_date)),c('Id','ym','RET.USD')]
-
-
-selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
-
-#change to time-series data type
-seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
-rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
-#rm(selected_past_data_df)
-
-#use past 24months return to construct the expected return and covariance
-mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-mu_hat_month 
-
-
-# for covariance, use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
-
-
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
-cov_mat_month
-
-#rm(seri_selected_past_data_df)
-
-global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = TRUE)
-summary(global_minimum_variance_portfolio)
-
-tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = 0, shorts = FALSE)
-summary(tangency_portfolio_no_short)
-
-weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
-colnames(weights_df) = top_20_stock_id
-rownames(weights_df) = dates[1]
-
-weights_df_final = weights_df
-
-er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
-rownames(er_sd_df_final) = dates[1]
-```
-
-
-
-
-## construct the first weighting
-```{r}
-risk_free_rate <- 0
-stock_ids <- unique(current_data_df$Id)
-#get quarterly data
-dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
-
-
-## construct the first weighting
+class(current_data_df$ym)
 top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
-
 selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
 
-selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 
-#change to time-series data type
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
 rm(selected_past_data_df)
 
-#use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
-
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
 
 weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
 colnames(weights_df) = top_20_stock_id
@@ -165,10 +105,7 @@ weights_df_final = weights_df
 
 er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
 rownames(er_sd_df_final) = dates[1]
-```
 
-
-```{r}
 for (date in dates[2:length(dates)]){
   date = as.Date(date)
   top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
@@ -178,14 +115,9 @@ for (date in dates[2:length(dates)]){
   rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
   rm(selected_past_data_df)
   mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-  
-  #use excess return to calculate the covariance
-  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
-
-  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  cov_mat_month <- cov(seri_selected_past_data_df)
   rm(seri_selected_past_data_df)
-  rm(seri_selected_past_data_df_excess_return)
-    
+  
   global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
   
   if(global_minimum_variance_portfolio$er > risk_free_rate){
@@ -194,25 +126,67 @@ for (date in dates[2:length(dates)]){
   weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
   colnames(weights_df) = top_20_stock_id
   rownames(weights_df) = date
-  weights_df_final_co = dplyr::bind_rows(weights_df_final,weights_df)
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
   
   er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
   rownames(er_sd_df) = date
   er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
   }
   else{
-    print(date)
-    print("- negative perfomance.")
-    
+    print("bad perfom.")
+  
   }
-  write.csv(weights_df_final,)
 }
 
 ```
 
-```{r}
 
+## Return Calculation
+```{r}
+# exclude index
+weights_df_final_r <- rownames_to_column(weights_df_final, var = "ym")
+
+# 
+t <- data.frame(colnames(weights_df_final_r))
+t <- t %>% 
+  slice(-1)
+names(t) <- c("Id")
+  
+Ids <- unique(t$Id)
+Ids <- data.frame(Id = Ids)
+setorder(Ids, Id)
+
+RET_selected_data <- DS.monthly %>% 
+  semi_join(Ids, by = "Id") %>% 
+  select(Id, ym, RET.USD)
+
+RET_time_series <- pivot_wider(RET_selected_data,names_from = Id, values_from = RET.USD) %>% 
+  mutate(ym = ymd(ym)) %>%
+  filter(month(ym) %in% c(3, 6, 9, 12)) %>% 
+  arrange(ym) %>% 
+  filter(year(ym) > c(1982))
+
+
+class(weights_df_final_r$ym)
+#weights_df_final_r$ym <- as.Date(as.yearmon(weights_df_final_r$ym,"%Y.%m"))
+weights_df_final_r <- weights_df_final_r %>% 
+  mutate(ym = ymd(ym))
+class(RET_time_series$ym)
+
+# setorder weights_df_final_r of Id column
+
+
+RET_Cal <- weights_df_final_r %>% 
+  full_join(RET_time_series, by = "ym")
+
+write.csv(weights_df_final_r, "weights_df_final_r.csv", row.names = FALSE)
+
+write.csv(RET_time_series, "RET_time_series.csv", row.names = FALSE)
+
+
+write.csv(RET_Cal, "RET_Cal_quarterly_3_cum.csv", row.names = FALSE)
 ```
+
 
 
 
@@ -304,6 +278,7 @@ plot(portfolio_future_value,type = "l", col = "blue", lwd = 2, ylab = "Dollars",
 
 ```
 
+```{r}
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
  <- stock_list_20_6_cum_ym[, c("Id", "ym", "RET.USD")]
 time_series_return_df <- pivot_wider(time_series_return_df, names_from = Id, values_from = RET.USD)

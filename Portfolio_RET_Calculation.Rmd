@@ -1,0 +1,196 @@
+---
+title: "Portfolio_RET_Calculation"
+author: "Yasu"
+date: "2023-07-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(ggplot2)
+library(tibble)
+```
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/Original_Dataset/GBR_DS_monthly.RData")
+```
+
+## Lewellen
+### weighted_result_quarterly_6_cum_20
+```{r}
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+
+
+t4 <- weighted_result_quarterly_6_cum_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_6_cum_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_6_cum_20 <- t4
+
+write.csv(RET_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_6_cum_20.csv")
+
+write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_6_cum_20.csv")
+```
+
+### weighted_result_quarterly_3_cum_20
+```{r}
+# No ym Index
+t4 <- weighted_result_quarterly_3_cum_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_6_cum_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_6_cum_20 <- t4
+
+write.csv(RET_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_6_cum_20.csv")
+
+write.csv(weight_quarterly_6_cum_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_6_cum_20.csv")
+```
+
+
+### weighted_result_quarterly_6_mean_20
+```{r}
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+
+
+t4 <- weighted_result_quarterly_6_mean_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_6_mean_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_6_mean_20 <- t4
+
+write.csv(RET_quarterly_6_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_6_mean_20.csv")
+
+write.csv(weight_quarterly_6_mean_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_6_mean_20.csv")
+```
+
+
+### weighted_result_quarterly_3_mean_20
+```{r}
+# No ym Index
+```
+
+
+
+## VAR
+### weighted_result_quarterly_5_var_20
+```{r}
+t4 <- weighted_result_quarterly_5_var_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_5_var_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_5_var_20 <- t4
+
+write.csv(RET_quarterly_5_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_5_var_20.csv")
+
+write.csv(weight_quarterly_5_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_5_var_20.csv")
+```
+
+
+### weighted_result_quarterly_3_var_20
+```{r}
+t4 <- weighted_result_quarterly_3_var_20 %>% 
+  rownames_to_column()
+
+t5 <- t4 %>% 
+  pivot_longer(cols = -rowname, names_to = "Id", values_to = "weight")
+
+t6 <- t5 %>% 
+  rename(Id = Id, ym = rowname) %>% 
+  select(Id, ym)
+
+class(DS.monthly$ym)
+t6$ym <- as.Date(t6$ym)
+
+t7 <- DS.monthly %>%
+  inner_join(t6, by = c("Id", "ym")) %>% 
+  select(Id, ym, RET.USD)
+
+RET_quarterly_3_var_20 <- t7 %>% 
+  pivot_wider(names_from = Id, values_from = RET.USD) %>% 
+  arrange(ym)
+
+weight_quarterly_3_var_20 <- t4
+
+write.csv(RET_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/RET_quarterly_3_var_20.csv")
+
+write.csv(weight_quarterly_3_var_20, "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Weighting/portfolio_return/weight_quarterly_3_var_20.csv")
+```
+
+
