@@ -53,13 +53,19 @@ Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
 ```
 
 ```{r}
-annual <- Univariate_Sort_Set_big %>%
+annual_market_ret <- Univariate_Sort_Set_big %>%
   mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET.USD/100 + 1) %>%
   group_by(year) %>%
     summarise(PROD=prod(RET.USD_PLUS_1)) %>%
   ungroup() %>%
-  mutate(ANNUAL_RET.USD=(PROD-1)*100)
+  mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_MKT_RET.USD)
 ```
+
+```{r}
+save(annual_market_ret, file = "../Data/annual_market_ret.RData")
+```
+
 
 
 
