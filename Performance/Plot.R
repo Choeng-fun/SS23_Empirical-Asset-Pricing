@@ -21,5 +21,6 @@ plot.data <- merge.data %>%
   gather(key = "variable", value = "value", -date)
 
 ggplot(plot.data, aes(x = date, y = value)) + 
-  geom_line(aes(color = variable, linetype = variable)) + 
-  scale_color_manual(values = c("darkred", "steelblue"))
+  geom_line(aes(color = variable, linetype = variable))
+# + scale_color_manual(values = c("purple", "darkgreen", "darkred", "steelblue"))
+```
