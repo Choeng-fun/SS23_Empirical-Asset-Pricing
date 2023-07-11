@@ -562,6 +562,9 @@ out_performance <- annual_6_cum_cumulative_return %>%
   mutate(outperformance = ANNUAL_RET.USD- ANNUAL_MKT_RET.USD)
 
 mean(out_performance$outperformance)
+mean(out_performance$ANNUAL_RET.USD)
+
+mean(out_performance$ANNUAL_RET.USD)/sd(out_performance$ANNUAL_RET.USD)
 
 mean(out_performance$ANNUAL_MKT_RET.USD)
 ```
@@ -578,6 +581,19 @@ print(IR)
 
 
 
+```{r}
+DTB <- DTB6_monthly %>% 
+  filter(ym > 1983.11) %>% 
+  group_by(ym) %>% 
+  summarise(rf = mean(DTB6))
+
+(1+mean(DTB$rf)*0.01)^12-1
+
+
+
+SR <- (mean(out_performance$ANNUAL_RET.USD)-mean(DTB$rf))/sd(out_performance$ANNUAL_RET.USD)
+print(SR)
+```
 
 
 
@@ -668,5 +684,10 @@ StyleAnalysis_Set_var_3 <- merge(StyleAnalysis_FF_and_Mom_Set,var_3,by="ym")
 Style_Analysis_Model <- lm(RET~SMB+HML+CMA+RMW+WML, data=StyleAnalysis_Set_var_3)
 
 summary(Style_Analysis_Model)
+```
+```{r}
+Ids <- quarterly_6_cum_20 %>% 
+  inner_join(DS.static, by = c("Id")) %>% 
+  select(Id, ym, NAME)
 ```
 
