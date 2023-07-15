@@ -55,7 +55,36 @@ lewellen_data_set[, Lag_cum_CEI := shift(cummean.gamma.cei, n= 1), by = Id]
 lewellen_data_set[, Lag_cum_Log_MV := shift(cummean.gamma.logmv, n= 1), by = Id]
 lewellen_data_set[, Lag_cum_Alpha3 := shift(cummean.gamma.alpha3, n= 1), by = Id]
 lewellen_data_set[, Lag_cum_RSI := shift(cummean.gamma.rsi, n= 1), by = Id]
+```
 
+```{r}
+# Creating the lag variable of firm chara geristics
+
+lewellen_data_set[, Lag_Sigma3 := shift(Sigma_3, n= 1), by = Id]
+lewellen_data_set[, Lag_BMm := shift(`B/Mm`, n= 1), by = Id]
+lewellen_data_set[, Lag_CEI := shift(CEI, n= 1), by = Id]
+lewellen_data_set[, Lag_Log_MV := shift(Log_MV, n= 1), by = Id]
+lewellen_data_set[, Lag_Alpha3 := shift(Alpha_3, n= 1), by = Id]
+lewellen_data_set[, Lag_RSI := shift(RSI, n= 1), by = Id]
+
+lewellen_data_set[, Lag_intercept := shift(intercept, n= 1), by = Id]
+```
+
+
+
+```{r}
+lewellen_expected_return_mean36 <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = Lag_mean36_Intercept + Lag_mean36_Sigma3 * Lag_Sigma3 + Lag_mean36_BMm * Lag_BMm + Lag_mean36_CEI * Lag_CEI + Lag_mean36_Log_MV * Lag_Log_MV + Lag_mean36_Alpha3 * Lag_Alpha3 + Lag_mean36_RSI * Lag_RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = Lag_cum_Intercept + Lag_cum_Sigma3 * Lag_Sigma3 + Lag_cum_BMm * Lag_BMm + Lag_cum_CEI * Lag_CEI + Lag_cum_Log_MV * Lag_Log_MV + Lag_cum_Alpha3 * Lag_Alpha3 + Lag_cum_RSI * Lag_RSI) %>% 
+    ungroup
+```
+
+```{r}
 lewellen_expected_return_mean36 <- lewellen_data_set %>% 
   group_by(ym, Id) %>% 
   mutate(Expected_Return_36 = Lag_mean36_Intercept * intercept + Lag_mean36_Sigma3 * Sigma_3 + Lag_mean36_BMm * `B/Mm` + Lag_mean36_CEI * CEI + Lag_mean36_Log_MV * Log_MV + Lag_mean36_Alpha3 * Alpha_3 + Lag_mean36_RSI * RSI) %>% 
@@ -162,6 +191,22 @@ clean_mean <- data.table(clean_mean)
 
 
 reg_mean <- clean_mean[!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36),
+                       .(gamma_beta=lm(ExRET.USD~Expected_Return_36 -1)$coefficient[1]),   
+  by=ym]
+
+
+reg_mean[,t.test(gamma_beta)]
+
+```
+```{r}
+clean_mean <- lewellen_expected_return_mean36 %>% 
+  select(Id,ym,RET.USD,ExRET.USD,Expected_Return_36)
+
+clean_mean <- data.table(clean_mean)
+
+
+
+reg_mean <- clean_mean[!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36),
                        .(gamma_zero=lm(ExRET.USD~Expected_Return_36)$coefficient[1],
 gamma_beta=lm(ExRET.USD~Expected_Return_36)$coefficient[2]),   
   by=ym]
@@ -169,8 +214,8 @@ gamma_beta=lm(ExRET.USD~Expected_Return_36)$coefficient[2]),
 
 reg_mean[,t.test(gamma_zero)]
 reg_mean[,t.test(gamma_beta)]
-
 ```
+
 
 ```{r}
 clean_cum <- lewellen_expected_return_cummean %>% 
@@ -219,7 +264,31 @@ lewellen_data_set_3[, Lag_cum_Intercept := shift(cummean.intercept, n= 1), by = 
 lewellen_data_set_3[, Lag_cum_Log_MV := shift(cummean.gamma.logmv, n= 1), by = Id]
 lewellen_data_set_3[, Lag_cum_Alpha3 := shift(cummean.gamma.alpha3, n= 1), by = Id]
 lewellen_data_set_3[, Lag_cum_RSI := shift(cummean.gamma.rsi, n= 1), by = Id]
+```
 
+```{r}
+# Creating the lag variable of firm characteristics
+lewellen_data_set_3[, Lag_Log_MV := shift(Log_MV, n= 1), by = Id]
+lewellen_data_set_3[, Lag_Alpha3 := shift(Alpha_3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_RSI := shift(RSI, n= 1), by = Id]
+
+lewellen_data_set_3[, Lag_intercept := shift(intercept, n= 1), by = Id]
+```
+
+```{r}
+lewellen_expected_return_mean36_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = Lag_mean36_Intercept +  Lag_mean36_Log_MV * Lag_Log_MV + Lag_mean36_Alpha3 * Lag_Alpha3 + Lag_mean36_RSI * Lag_RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = Lag_cum_Intercept + Lag_cum_Log_MV * Lag_Log_MV + Lag_cum_Alpha3 * Lag_Alpha3 + Lag_cum_RSI * Lag_RSI) %>% 
+    ungroup
+```
+
+
+```{r}
 lewellen_expected_return_mean36_3 <- lewellen_data_set_3 %>% 
   group_by(ym, Id) %>% 
   mutate(Expected_Return_36 = Lag_mean36_Intercept * intercept +  Lag_mean36_Log_MV * Log_MV + Lag_mean36_Alpha3 * Alpha_3 + Lag_mean36_RSI * RSI) %>% 
@@ -362,7 +431,7 @@ stock_20_6_mean36 <- lewellen_expected_return_mean36 %>%
   filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
   group_by(ym) %>% 
   arrange(desc(Expected_Return_36)) %>% 
-  slice(1:20) %>% 
+  slice(1:20) %>%
     ungroup
 
 stock_20_6_cum <- lewellen_expected_return_cummean %>%
@@ -371,27 +440,15 @@ stock_20_6_cum <- lewellen_expected_return_cummean %>%
   arrange(desc(Expected_Return_cummean)) %>% 
   slice(1:20) %>% 
   ungroup
+
+stock_20_6_mean36 <- stock_20_6_mean36 %>% 
+  select(Id, ym)
+
+stock_20_6_cum <- stock_20_6_cum %>% 
+  select(Id, ym)
 ```
 
 
-### select Top 10th Decile stock (6 factor)
-```{r}
-stock_10_6_mean36 <- lewellen_expected_return_mean36 %>%
-  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
-  group_by(ym) %>% 
-  arrange(desc(Expected_Return_36)) %>% 
-  mutate(Decile = ntile(Expected_Return_36, 10)) %>% 
-  filter(Decile == 10) %>% 
-    ungroup
-
-stock_10_6_cum <- lewellen_expected_return_cummean %>%
-    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
-  group_by(ym) %>% 
-  arrange(desc(Expected_Return_cummean)) %>% 
-  mutate(Decile = ntile(Expected_Return_cummean, 10)) %>% 
-  filter(Decile == 10) %>% 
-    ungroup
-```
 
 ## 3 Factor
 ### Select Top 20 stocks (3 factor)
@@ -409,40 +466,40 @@ stock_20_3_cum <- lewellen_expected_return_cummean_3 %>%
   arrange(desc(Expected_Return_cummean)) %>% 
   slice(1:20) %>% 
   ungroup
+
+stock_20_3_mean36 <- stock_20_3_mean36 %>% 
+  select(Id, ym)
+
+stock_20_3_cum <-stock_20_3_cum %>% 
+  select(Id, ym)
 ```
 
-### select Top 10th Decile stock (3 factor)
 
 ```{r}
-stock_10_3_mean36 <- lewellen_expected_return_mean36_3 %>%
-  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
-  group_by(ym) %>% 
-  arrange(desc(Expected_Return_36)) %>% 
-  mutate(Decile = ntile(Expected_Return_36, 10)) %>% 
-  filter(Decile == 10) %>% 
-    ungroup
-
-stock_10_3_cum <- lewellen_expected_return_cummean_3 %>%
-    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
-  group_by(ym) %>% 
-  arrange(desc(Expected_Return_cummean)) %>% 
-  mutate(Decile = ntile(Expected_Return_cummean, 10)) %>% 
-  filter(Decile == 10) %>% 
-    ungroup
-```
-
-```{r}
-check_num <- stock_10_6_mean36 %>% 
+check_num <- stock_20_6_mean36 %>% 
   group_by(ym) %>%
   summarise(n =n())
 ```
 
 ```{r}
-save(stock_20_6_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_mean36.RData")
+save(stock_20_6_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_mean_20.RData")
 
-save(stock_20_6_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/stock_20_6_cum.RData")
+save(stock_20_6_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_mean_20.RData")
+
+save(stock_20_6_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_6_cum_20.RData")
+
+save(stock_20_6_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_cum_20.RData")
 ```
 
+```{r}
+save(stock_20_3_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_mean_20.RData")
+
+save(stock_20_3_mean36, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_mean_20.RData")
+
+save(stock_20_3_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/monthly_3_cum_20.RData")
+
+save(stock_20_3_cum, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_3_cum_20.RData")
+```
 
 
 
