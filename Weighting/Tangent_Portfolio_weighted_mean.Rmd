@@ -40,9 +40,11 @@ DS.monthly$RET.USD <- DS.monthly$RET.USD/100
 ## quarterly_3_mean_20
 ```{r}
 ##Convert date type to "date"in current portfolio dateframe
-current_data_df <- quarterly_3_mean_20
+current_data_df <- stock_20_3_mean36
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
+
+
 
 
 ```{r}
@@ -188,7 +190,7 @@ save(re_sd_result_quarterly_3_mean_20,file = "./Weighted_Result/re_sd_result_qua
 
 ```{r}
 ##Convert date type to "date"in current portfolio dateframe
-current_data_df <- quarterly_6_mean_20
+current_data_df <- stock_20_6_mean36
 current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
 ```
 

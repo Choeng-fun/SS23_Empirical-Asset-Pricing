@@ -198,6 +198,27 @@ print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
 
 ###quarterly_6_cum_20
 ```{r}
+check <-  DS.monthly %>%
+  inner_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD) %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+check_r <- check %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(check_r$RET))
+print(((1+mean(check_r$RET)*0.01)^12-1))
+
+print(sd(check_r$RET))
+print(sd(check_r$RET)*sqrt(12)*0.01)
+
+print(((1+mean(check_r$RET)*0.01)^12-1)/(sd(check_r$RET)*sqrt(12)*0.01))
+```
+
+```{r}
 
 t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -259,6 +280,11 @@ Effectiv_N_6_cum <- t7 %>%
   mutate(sigma_i = sigma^(-1))
 
 print(sum(Effectiv_N_6_cum$sigma_i)/n_distinct(Effectiv_N_6_cum$ym))
+```
+
+
+```{r}
+write.csv(quarterly_6_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/performance.csv")
 ```
 
 ###quarterly_3_mean_20
