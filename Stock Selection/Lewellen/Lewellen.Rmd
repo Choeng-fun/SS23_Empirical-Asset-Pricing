@@ -171,6 +171,7 @@ reg_mean[,t.test(gamma_zero)]
 reg_mean[,t.test(gamma_beta)]
 
 ```
+
 ```{r}
 clean_cum <- lewellen_expected_return_cummean %>% 
   select(Id,ym,RET.USD,ExRET.USD,Expected_Return_cummean)
