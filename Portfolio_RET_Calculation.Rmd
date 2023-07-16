@@ -132,7 +132,8 @@ t7 <- t6 %>%
 quarterly_6_mean_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup %>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_6_mean_performance$RET))
 print(sd(quarterly_6_mean_performance$RET))
@@ -201,7 +202,8 @@ t7 <- t6 %>%
 quarterly_6_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_6_cum_performance$RET))
 print(sd(quarterly_6_cum_performance$RET))
@@ -271,7 +273,8 @@ t7 <- t6 %>%
 quarterly_3_mean_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_3_mean_performance$RET))
 print(sd(quarterly_3_mean_performance$RET))
@@ -338,7 +341,8 @@ t7 <- t6 %>%
 quarterly_3_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
@@ -405,7 +409,8 @@ t7 <- t6 %>%
 quarterly_5_var_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_5_var_performance$RET))
 print(sd(quarterly_5_var_performance$RET))
@@ -470,7 +475,8 @@ t7 <- t6 %>%
 quarterly_3_var_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_3_var_performance$RET))
 print(sd(quarterly_3_var_performance$RET))
@@ -509,6 +515,28 @@ Effectiv_N_3_var <- t7 %>%
   mutate(sigma_i = sigma^(-1))
 
 print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
+```
+```{r}
+mean_6_performance <- quarterly_6_mean_performance %>% 
+  filter(ym >= "1990-01-01")
+
+mean_3_performance <- quarterly_3_mean_performance %>% 
+  filter(ym >= "1990-01-01")
+
+cum_6_performance <- quarterly_6_cum_performance %>% 
+  filter(ym >= "1990-01-01")
+
+cum_3_performance <- quarterly_3_cum_performance %>% 
+  filter(ym >= "1990-01-01")
+```
+
+
+
+```{r}
+save(mean_6_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_6_performance.RData")
+save(mean_3_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_3_performance.RData")
+save(cum_6_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_6_performance.RData")
+save(cum_3_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_3_performance.RData")
 ```
 
 
