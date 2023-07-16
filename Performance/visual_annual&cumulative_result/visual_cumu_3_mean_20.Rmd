@@ -1,0 +1,119 @@
+---
+title: "visual_cumu_3_mean_20"
+author: "Yu"
+date: "2023-07-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(ggplot2)
+library(tibble)
+library(PerformanceAnalytics)
+```
+
+
+## Change the data format
+### weighted_result_quarterly_3_var_20
+```{r}
+
+weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+###quarterly_3_mean_20
+```{r}
+t5 <- weighted_result_quarterly_3_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.yearmon(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym) 
+
+
+quarterly_3_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup %>% filter(ym >= "1990-01-01")
+
+print(mean(quarterly_3_mean_performance$RET))
+print(sd(quarterly_3_mean_performance$RET))
+print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
+
+
+write.csv(quarterly_3_mean_performance, file = "mean_3_performance.csv")
+```
+
+
+```{r}
+anualized_return <- (1+mean(quarterly_3_mean_performance$RET) *0.01)^12-1
+print(anualized_return)
+```
+
+
+```{r}
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+cumu_quarterly_3_mean_performance <- cumsum(tseri_quarterly_3_mean_performance)
+
+rownames(cumu_quarterly_3_mean_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_mean_performance,file = "3_mean_cumulative_return.csv")
+```
+
+
+```{r}
+# Turnover
+Turnover_3_mean <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_3_mean <- Turnover_3_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_mean$sigma))
+print(n_distinct(Turnover_3_mean$ym))
+print(sum(Turnover_3_mean$sigma)/n_distinct(Turnover_3_mean$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_3_mean <- t7 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_mean$sigma_i)/n_distinct(Effectiv_N_3_mean$ym))

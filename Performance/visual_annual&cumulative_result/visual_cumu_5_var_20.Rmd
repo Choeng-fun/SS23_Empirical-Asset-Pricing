@@ -84,8 +84,8 @@ tseri_quarterly_5_var_performance <- quarterly_5_var_performance[,2]
 rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
 cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
 
-rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
-write.csv(tseri_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
 ```
 
 
