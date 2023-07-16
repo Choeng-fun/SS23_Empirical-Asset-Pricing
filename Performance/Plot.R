@@ -52,7 +52,8 @@ Market_RET <- Univariate_Sort_Set_big %>%
   group_by(ym) %>% 
   mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
   ungroup %>% 
-  arrange(ym, Id)
+  arrange(ym, Id) %>% 
+  filter(ym >= "1990-01-01")
 
 Market_RET_ym <- Market_RET %>% 
   group_by(ym) %>% 

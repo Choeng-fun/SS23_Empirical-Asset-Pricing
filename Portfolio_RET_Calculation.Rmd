@@ -181,6 +181,18 @@ print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
 
 ```
 
+```{r}
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+cumu_quarterly_6_mean_performance <- cumsum(tseri_quarterly_6_mean_performance)
+
+rownames(cumu_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+write.csv(cumu_quarterly_6_mean_performance,file = "6_mean_cumulative_return.csv")
+```
+
+
 ###quarterly_6_cum_20
 ```{r}
 t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
@@ -250,6 +262,16 @@ Effectiv_N_6_cum <- t7 %>%
 print(sum(Effectiv_N_6_cum$sigma_i)/n_distinct(Effectiv_N_6_cum$ym))
 ```
 
+```{r}
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+cumu_quarterly_6_cum_performance <- cumsum(tseri_quarterly_6_cum_performance)
+
+rownames(cumu_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+write.csv(cumu_quarterly_6_cum_performance,file = "6_cum_cumulative_return.csv")
+```
 
 
 ###quarterly_3_mean_20
@@ -282,6 +304,8 @@ print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET
 
 a <- mean(quarterly_3_mean_performance$RET) *0.01
 print((1+a)^12-1)
+
+
 
 #Plot
 ggplot(quarterly_3_mean_performance, aes(x = ym, y = RET)) +
@@ -318,6 +342,17 @@ Effectiv_N_3_mean <- t7 %>%
 
 print(sum(Effectiv_N_3_mean$sigma_i)/n_distinct(Effectiv_N_3_mean$ym))
 ```
+```{r}
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+cumu_quarterly_3_mean_performance <- cumsum(tseri_quarterly_3_mean_performance)
+
+rownames(cumu_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+write.csv(cumu_quarterly_3_mean_performance,file = "3_mean_cumulative_return.csv")
+```
+
 
 
 ###quarterly_3_cum_20
@@ -387,6 +422,18 @@ Effectiv_N_3_cum <- t7 %>%
 
 print(sum(Effectiv_N_3_cum$sigma_i)/n_distinct(Effectiv_N_3_cum$ym))
 ```
+
+```{r}
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+write.csv(cumu_quarterly_3_cum_performance,file = "3_cum_cumulative_return.csv")
+```
+
 
 ###quarterly_5_var_20
 ```{r}
@@ -516,27 +563,14 @@ Effectiv_N_3_var <- t7 %>%
 
 print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
 ```
-```{r}
-mean_6_performance <- quarterly_6_mean_performance %>% 
-  filter(ym >= "1990-01-01")
-
-mean_3_performance <- quarterly_3_mean_performance %>% 
-  filter(ym >= "1990-01-01")
-
-cum_6_performance <- quarterly_6_cum_performance %>% 
-  filter(ym >= "1990-01-01")
-
-cum_3_performance <- quarterly_3_cum_performance %>% 
-  filter(ym >= "1990-01-01")
-```
 
 
 
 ```{r}
-save(mean_6_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_6_performance.RData")
-save(mean_3_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_3_performance.RData")
-save(cum_6_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_6_performance.RData")
-save(cum_3_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_3_performance.RData")
+save(quarterly_6_mean_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_6_performance.RData")
+save(quarterly_6_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_3_performance.RData")
+save(quarterly_3_mean_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_6_performance.RData")
+save(quarterly_3_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_3_performance.RData")
 ```
 
 
