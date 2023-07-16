@@ -3761,7 +3761,8 @@ t7 <- t6 %>%
 quarterly_6_mean_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_6_mean_performance$RET))
 print(sd(quarterly_6_mean_performance$RET))
@@ -3793,7 +3794,8 @@ t7 <- t6 %>%
 quarterly_6_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_6_cum_performance$RET))
 print(sd(quarterly_6_cum_performance$RET))
@@ -3824,7 +3826,8 @@ t7 <- t6 %>%
 quarterly_3_mean_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_3_mean_performance$RET))
 print(sd(quarterly_3_mean_performance$RET))
@@ -3856,7 +3859,8 @@ t7 <- t6 %>%
 quarterly_3_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
 
 print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
