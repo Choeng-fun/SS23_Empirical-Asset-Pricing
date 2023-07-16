@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(lubridate)
 library(dplyr)
+library(xts)
 ```
 
 
@@ -66,11 +67,31 @@ quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance
 
 quarterly_6_cum_performance$RET <- quarterly_6_cum_performance$RET/100
 
-annual_returns_xts <- period.apply(quarterly_6_cum_performance, endpoints(quarterly_6_cum_performance, "years"), FUN = function(x) prod(1 + x) - 1)
+annual_cum_6_returns <- period.apply(quarterly_6_cum_performance, endpoints(quarterly_6_cum_performance, "years"), FUN = function(x) prod(1 + x) - 1)
 
-print(mean(annual_returns_xts$RET))
-print(sd(annual_returns_xts$RET))
-print(mean(annual_returns_xts$RET)/sd(annual_returns_xts$RET))
+write.csv(annual_cum_6_returns,file = "annual_cum_6_returns.csv")
+
+print(mean(annual_cum_6_returns$RET))
+print(sd(annual_cum_6_returns$RET))
+print(mean(annual_cum_6_returns$RET)/sd(annual_cum_6_returns$RET))
+```
+```{r}
+
+annual_cum_6_returns
+
+#Expected Shortfall (ES):
+confidence_level <- 0.05
+Expected_Shortfall <- quantile(annual_cum_6_returns$RET, confidence_level, type = 1)
+Expected_Shortfall
+
+#Value at Risk (VaR):
+VaR <- quantile(annual_cum_6_returns$RET, confidence_level, type = 1)
+VaR 
+
+#Component Contribution:
+#component_contributions <- annual_cum_6_returns$weights * #annual_6_cum_performance$component_ret
+
+max_drawdown <- maxDrawdown(annual_6_cum_performance$ANNUAL_RET.USD)
 ```
 
 
@@ -81,10 +102,7 @@ print(mean(annual_returns_xts$RET)/sd(annual_returns_xts$RET))
 #    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
 #  ungroup() %>%
 #  mutate(ANNUAL_RET.USD=(PROD-1)*100)
-
-write.csv(annual_6_cum_performance,file = "annual_6_cum_cumulative_return.csv")
-
-mean(annual_6_cum_performance$ANNUAL_RET.USD)
+#annual_6_cum_performance <- period.apply(annual_6_cum_performance, endpoints(annual_6_cum_performance, #"years"), FUN = function(x) prod(1 + x) - 1)
 
 ```
 

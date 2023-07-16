@@ -57,6 +57,7 @@ t7 <- t6 %>%
   filter(!is.na(weight) & !is.na(RET.USD)) %>% 
   arrange(ym)
 
+
 quarterly_3_cum_performance <- t7 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
@@ -66,11 +67,17 @@ print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
 print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
 
+
+write.csv(quarterly_3_cum_performance, file = "3_var_monthly_return.csv")
+```
+
+
+```{r}
 #convert monthly data to annual date
 
 quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
 
-quarterly_3_cum_performance$RET <- quarterly_3_cum_performance$RET/100
+#quarterly_3_cum_performance$RET <- quarterly_3_cum_performance$RET/100
 
 annual_returns_xts <- period.apply(quarterly_3_cum_performance, endpoints(quarterly_3_cum_performance, "years"), FUN = function(x) prod(1 + x) - 1)
 
