@@ -26,7 +26,8 @@ library(data.table)
 
 ```{r}
 ## convert the date type of ym to "Date" in the original dataset
- load("~/Desktop/Empirical Asset Pricing/Repo/Original_Dataset/GBR_DS_monthly.RData")
+# load("~/Desktop/Empirical Asset Pricing/Repo/Original_Dataset/GBR_DS_monthly.RData")
+load("../Original_Dataset/GBR_DS_monthly.RData")
 # load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_3_var_20.RData")
 # load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_5_var_20.RData")
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))

@@ -106,6 +106,7 @@ weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_2
 
 ## Performance
 ```{r}
+load("../Original_Dataset/GBR_DS_monthly.RData")
 DS.monthly$ym <- as.Date(DS.monthly$ym)
 ```
 
@@ -139,23 +140,6 @@ print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET
 
 a <- mean(quarterly_6_mean_performance$RET) *0.01
 print((1+a)^12-1)
-
-# Annualization
-quarterly_6_mean_performance_annu <- quarterly_6_mean_performance %>% 
-  mutate(year = year(ym)) %>% 
-  group_by(year) %>% 
-  mutate(RET_0 = 0.01 * RET) %>% 
-  mutate(RET_Annual = prod(1+RET_0)-1) %>% 
-  ungroup
-
-quarterly_6_mean_performance_annu <- quarterly_6_mean_performance_annu %>% 
-  select(year, RET_Annual) %>% 
-  distinct(year, RET_Annual, .keep_all = TRUE)
-  
-print(mean(quarterly_6_mean_performance_annu$RET_Annual))
-print(sd(quarterly_6_mean_performance_annu$RET_Annual))
-
-
 
 
 # Plot
@@ -198,28 +182,6 @@ print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
 
 ###quarterly_6_cum_20
 ```{r}
-check <-  DS.monthly %>%
-  inner_join(t5, by = c("Id", "ym")) %>% 
-  select(Id, ym, weight, RET.USD) %>% 
-  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
-  arrange(ym)
-
-check_r <- check %>% 
-  group_by(ym) %>% 
-  summarise(RET = sum(weight * RET.USD)) %>% 
-  ungroup
-
-print(mean(check_r$RET))
-print(((1+mean(check_r$RET)*0.01)^12-1))
-
-print(sd(check_r$RET))
-print(sd(check_r$RET)*sqrt(12)*0.01)
-
-print(((1+mean(check_r$RET)*0.01)^12-1)/(sd(check_r$RET)*sqrt(12)*0.01))
-```
-
-```{r}
-
 t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
 
@@ -244,6 +206,10 @@ quarterly_6_cum_performance <- t7 %>%
 print(mean(quarterly_6_cum_performance$RET))
 print(sd(quarterly_6_cum_performance$RET))
 print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+a <- mean(quarterly_6_cum_performance$RET) *0.01
+print((1+a)^12-1)
+
 
 
 # Plot
@@ -283,9 +249,6 @@ print(sum(Effectiv_N_6_cum$sigma_i)/n_distinct(Effectiv_N_6_cum$ym))
 ```
 
 
-```{r}
-write.csv(quarterly_6_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/performance.csv")
-```
 
 ###quarterly_3_mean_20
 ```{r}
@@ -314,6 +277,8 @@ print(mean(quarterly_3_mean_performance$RET))
 print(sd(quarterly_3_mean_performance$RET))
 print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
 
+a <- mean(quarterly_3_mean_performance$RET) *0.01
+print((1+a)^12-1)
 
 #Plot
 ggplot(quarterly_3_mean_performance, aes(x = ym, y = RET)) +
@@ -377,7 +342,12 @@ quarterly_3_cum_performance <- t7 %>%
 
 print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
-print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+
+a <- mean(quarterly_3_cum_performance$RET) *0.01
+print((1+a)^12-1)
+
+
 
 ggplot(quarterly_3_cum_performance, aes(x = ym, y = RET)) +
   geom_line() +
@@ -440,6 +410,9 @@ quarterly_5_var_performance <- t7 %>%
 print(mean(quarterly_5_var_performance$RET))
 print(sd(quarterly_5_var_performance$RET))
 print(mean(quarterly_5_var_performance$RET)/sd(quarterly_5_var_performance$RET))
+
+a <- mean(quarterly_5_var_performance$RET) *0.01
+print((1+a)^12-1)
 
 ggplot(quarterly_5_var_performance, aes(x = ym, y = RET)) +
   geom_line() +

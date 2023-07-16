@@ -3393,4 +3393,478 @@ re_sd_result_quarterly_6_cum_20 <-  er_sd_df_final
 ```
 
 
+### quarterly_3_var_20
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- quarterly_3_var_20
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+
+ if(any(is.na(selected_past_data_df))){
+   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+   top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+#use excess return to calculate the covariance
+seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+rm(seri_selected_past_data_df)
+rm(seri_selected_past_data_df_excess_return)
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+weights_df <- as.data.table(weights_df)
+
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+if(any(is.na(selected_past_data_df))){
+    missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+     top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+   
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+
+   colnames(weights_df) = top_20_stock_id
+   rownames(weights_df) = date
+  
+  weights_df <- as.data.table(weights_df)
+  rm(cov_mat_month)
+  
+  
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+
+  }
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_3_var_20 <-  weights_df_final
+save(weighted_result_quarterly_3_var_20,file = "./Weighted_Result/weighted_result_quarterly_3_var_20.Rdata")
+
+re_sd_result_quarterly_3_var_20 <-  er_sd_df_final
+save(re_sd_result_quarterly_3_var_20,file = "./Weighted_Result/re_sd_result_quarterly_3_var_20.Rdata")
+
+```
+
+
+## quarterly_5_var_20
+
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- quarterly_5_var_20
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  #month(date) <- month(date)+1
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+#use excess return to calculate the covariance
+seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+rm(seri_selected_past_data_df)
+rm(seri_selected_past_data_df_excess_return)
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+ # if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+#}
+
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+    
+  }
+}
+
+```
+
+
+
+
+
+
+
+## 12. Performance
+### Change the data format
+#### weighted_result_quarterly_6_mean_20
+```{r}
+weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_3_mean_20
+```{r}
+weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_6_cum_20
+```{r}
+weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+
+#### weighted_result_quarterly_3_cum_20
+```{r}
+weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### Performance
+```{r}
+load("../Original_Dataset/GBR_DS_monthly.RData")
+DS.monthly$ym <- as.Date(DS.monthly$ym)
+```
+
+### quarterly_6_mean_20
+```{r}
+
+t5 <- weighted_result_quarterly_6_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_6_mean_performance$RET))
+print(sd(quarterly_6_mean_performance$RET))
+print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET))
+
+a <- mean(quarterly_6_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+```
+
+### quarterly_6_cum_20
+```{r}
+t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_6_cum_performance$RET))
+print(sd(quarterly_6_cum_performance$RET))
+print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+a <- mean(quarterly_6_cum_performance$RET) *0.01
+print((1+a)^12-1)
+```
+
+### quarterly_3_mean_20
+```{r}
+t5 <- weighted_result_quarterly_3_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_mean_performance$RET))
+print(sd(quarterly_3_mean_performance$RET))
+print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
+
+a <- mean(quarterly_3_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+```
+
+### quarterly_3_cum_20
+```{r}
+t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup
+
+print(mean(quarterly_3_cum_performance$RET))
+print(sd(quarterly_3_cum_performance$RET))
+print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+
+a <- mean(quarterly_3_cum_performance$RET) *0.01
+print((1+a)^12-1)
+
+```
+
 
