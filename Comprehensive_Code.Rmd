@@ -3800,6 +3800,11 @@ print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET
 a <- mean(quarterly_6_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_6_mean_performance$RET, 1 - confidence_level)
+print(VaR)
+
 ```
 
 ### quarterly_6_cum_20
@@ -3833,6 +3838,11 @@ print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
 # annualized return
 a <- mean(quarterly_6_cum_performance$RET) *0.01
 print((1+a)^12-1)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_6_cum_performance$RET, 1 - confidence_level)
+print(VaR)
 ```
 
 ### quarterly_3_mean_20
@@ -3867,6 +3877,11 @@ print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET
 a <- mean(quarterly_3_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
+print(VaR)
+
 ```
 
 ### quarterly_3_cum_20
@@ -3900,6 +3915,12 @@ print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
 # annualized return
 a <- mean(quarterly_3_cum_performance$RET) *0.01
 print((1+a)^12-1)
+
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_cum_performance$RET, 1 - confidence_level)
+print(VaR)
 
 ```
 

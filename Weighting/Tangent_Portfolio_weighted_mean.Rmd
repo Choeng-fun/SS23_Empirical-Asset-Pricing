@@ -32,7 +32,6 @@ library(data.table)
 DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
 DS.monthly$RET.USD <- DS.monthly$RET.USD/100
 
-#DS.monthly <- DS.monthly[!is.na(RET.USD)]
 
 ```
 

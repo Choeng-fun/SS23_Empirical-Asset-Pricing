@@ -1,0 +1,148 @@
+---
+title: "equal_weighted"
+author: "Yu"
+date: "2023-07-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(data.table)
+
+```
+
+
+```{r}
+## convert the date type of ym to "Date" in the original dataset
+load("~/SS23_Empirical-Asset-Pricing/Original_Dataset/GBR_DS_monthly.RData")
+load("~/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_mean_20.RData")
+
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+DS.monthly$RET.USD <- DS.monthly$RET.USD/100
+
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_6_mean36
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+stock_ids <- unique(current_data_df$Id)
+
+## construct the equal weighting
+#get quarterly data
+equal_weighted_6_mean_20 <- weighted_result_quarterly_6_mean_20
+
+equal_weighted_6_mean_20 <- apply(weighted_result_quarterly_6_mean_20, 2, function(x) replace(x, TRUE, 0.05))
+
+equal_weighted_6_mean_20 <- as.data.frame(equal_weighted_6_mean_20)
+class(equal_weighted_6_mean_20)
+
+```
+
+```{r}
+equal_weighted_6_mean_20_complete <- equal_weighted_6_mean_20 %>%
+  mutate(ym=rownames(equal_weighted_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+```{r}
+t5 <- equal_weighted_6_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+#class(t5$ym)
+#class(DS.monthly$ym)
+
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+equal_weighted_6_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+print(mean(equal_weighted_6_mean_performance$RET))
+print(sd(equal_weighted_6_mean_performance$RET))
+print(mean(equal_weighted_6_mean_performance$RET)/sd(equal_weighted_6_mean_performance$RET))
+
+# annualized return
+a <- mean(equal_weighted_6_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+
+```
+```{r}
+#cumulative return
+equal_weighted_6_mean_performance$ym <- as.Date(as.yearmon(equal_weighted_6_mean_performance$ym,"%Y.%m"))
+
+tseri_equal_6_mean_performance <- equal_weighted_6_mean_performance[,2]
+rownames(tseri_equal_6_mean_performance) <- equal_weighted_6_mean_performance$ym
+cumu_equal_6_mean_performance <- cumsum(tseri_equal_6_mean_performance)
+
+rownames(cumu_equal_6_mean_performance) <- equal_weighted_6_mean_performance$ym
+write.csv(cumu_equal_6_mean_performance,file = "equal_6_mean_cumulative_return.csv")
+
+# Turnover
+Turnover_6_mean_eq <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_6_mean_eq <- Turnover_6_mean_eq %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_mean_eq$sigma))
+print(n_distinct(Turnover_6_mean_eq$ym))
+print(sum(Turnover_6_mean_eq$sigma)/n_distinct(Turnover_6_mean_eq$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_6_mean <- t7_3_var_20 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
