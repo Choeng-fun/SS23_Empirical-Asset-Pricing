@@ -39,60 +39,67 @@ weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-###quarterly_3_mean_20
+###quarterly_3_var_20
 ```{r}
-t5 <- weighted_result_quarterly_3_var_20_complete %>% 
+t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
 
-class(t5$ym)
+class(t5_3_var_20$ym)
 
 class(DS.monthly$ym)
-t5$ym <- as.yearmon(t5$ym)
+t5_3_var_20$ym <- as.yearmon(t5_3_var_20$ym)
 
-t6 <- DS.monthly %>%
-  full_join(t5, by = c("Id", "ym")) %>% 
+t6_3_var_20 <- DS.monthly %>%
+  full_join(t5_3_var_20, by = c("Id", "ym")) %>% 
   select(Id, ym, weight, RET.USD)
 
-t7 <- t6 %>% 
+t7_3_var_20 <- t6_3_var_20 %>% 
   filter(!is.na(weight) & !is.na(RET.USD)) %>% 
   arrange(ym) 
 
 
-quarterly_3_var_performance <- t7 %>% 
+quarterly_3_var_performance <- t7_3_var_20  %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
   ungroup %>% filter(ym >= "1990-01-01")
 
+# expected return
 print(mean(quarterly_3_var_performance$RET))
+# volatility
 print(sd(quarterly_3_var_performance$RET))
+# sharpe ratio
 print(mean(quarterly_3_var_performance$RET)/sd(quarterly_3_var_performance$RET))
 
-
 write.csv(quarterly_3_var_performance, file = "var_3_performance.csv")
-```
 
-
-```{r}
+#annualized_return
 anualized_return <- (1+mean(quarterly_3_var_performance$RET) *0.01)^12-1
 print(anualized_return)
 ```
 
 
 ```{r}
+
+```
+
+
+```{r}
+#cumulative return
 quarterly_3_var_performance$ym <- as.Date(as.yearmon(quarterly_3_var_performance$ym,"%Y.%m"))
 
 tseri_quarterly_3_var_performance <- quarterly_3_var_performance[,2]
 rownames(tseri_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
 cumu_quarterly_3_var_performance <- cumsum(tseri_quarterly_3_var_performance)
 
-rownames(tseri_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
-write.csv(tseri_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
+rownames(cumu_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
 ```
 
 
 ```{r}
+
 # Turnover
-Turnover_3_var <- t5 %>% 
+Turnover_3_var <- t5_3_var_20 %>% 
   mutate(weight = replace_na(weight, 0)) %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
@@ -111,7 +118,7 @@ print(sum(Turnover_3_var$sigma)/n_distinct(Turnover_3_var$ym)/2)
 
 
 # Effectiv N 
-Effectiv_N_3_var <- t7 %>% 
+Effectiv_N_3_var <- t7_3_var_20 %>% 
   mutate(w2 = weight^2)%>% 
   group_by(ym) %>% 
   summarise(sigma = sum(w2)) %>% 
@@ -119,6 +126,10 @@ Effectiv_N_3_var <- t7 %>%
 
 print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
 
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
+print(VaR)
 ```
 
 
@@ -143,13 +154,13 @@ print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
 #annualized
 #converted to time series data
 
-#quarterly_3_cum_performance$ym <- #as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
 
-#tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
-#rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
 
-#annual_tseri_quarterly_3_cum_performance <- #Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
-#annual_tseri_quarterly_3_cum_performance
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = TRUE)
+annual_tseri_quarterly_3_cum_performance
 
 
 ```

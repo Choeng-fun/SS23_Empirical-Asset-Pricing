@@ -38,25 +38,25 @@ weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-###quarterly_3_mean_20
+###quarterly_5_var_20
 ```{r}
-t5 <- weighted_result_quarterly_5_var_20_complete %>% 
+t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
 
-class(t5$ym)
+class(t5_5_var_20$ym)
 
 class(DS.monthly$ym)
-t5$ym <- as.yearmon(t5$ym)
+t5_5_var_20$ym <- as.yearmon(t5_5_var_20$ym)
 
-t6 <- DS.monthly %>%
-  full_join(t5, by = c("Id", "ym")) %>% 
+t6_5_var_20 <- DS.monthly %>%
+  full_join(t5_5_var_20, by = c("Id", "ym")) %>% 
   select(Id, ym, weight, RET.USD)
 
-t7 <- t6 %>% 
+t7_5_var_20 <- t6_5_var_20 %>% 
   filter(!is.na(weight) & !is.na(RET.USD)) %>% 
   arrange(ym)
 
-quarterly_5_var_performance <- t7 %>% 
+quarterly_5_var_performance <- t7_5_var_20 %>% 
   group_by(ym) %>% 
   summarise(RET = sum(weight * RET.USD)) %>% 
   ungroup %>% filter(ym >= "1990-01-01")
@@ -67,12 +67,15 @@ print(mean(quarterly_5_var_performance$RET)/sd(quarterly_5_var_performance$RET))
 
 
 write.csv(quarterly_5_var_performance, file = "var_5_performance.csv")
+
+#annualized_return
+anualized_return <- (1+mean(quarterly_5_var_performance$RET) *0.01)^12-1
+print(anualized_return)
 ```
 
 
 ```{r}
-anualized_return <- (1+mean(quarterly_5_var_performance$RET) *0.01)^12-1
-print(anualized_return)
+
 ```
 
 
@@ -91,7 +94,7 @@ write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
 
 ```{r}
 # Turnover
-Turnover_5_var <- t5 %>% 
+Turnover_5_var <- t5_5_var_20 %>% 
   mutate(weight = replace_na(weight, 0)) %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
@@ -110,13 +113,18 @@ print(sum(Turnover_5_var$sigma)/n_distinct(Turnover_5_var$ym)/2)
 
 
 # Effectiv N 
-Effectiv_N_5_var <- t7 %>% 
+Effectiv_N_5_var <- t7_5_var_20 %>% 
   mutate(w2 = weight^2)%>% 
   group_by(ym) %>% 
   summarise(sigma = sum(w2)) %>% 
   mutate(sigma_i = sigma^(-1))
 
 print(sum(Effectiv_N_5_var$sigma_i)/n_distinct(Effectiv_N_5_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
+print(VaR)
 ```
 
 

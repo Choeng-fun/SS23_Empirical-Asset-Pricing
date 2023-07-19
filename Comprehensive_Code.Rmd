@@ -2875,15 +2875,13 @@ selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS
    top_20_stock_id<- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
  }
 
-#selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
-
-
 selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
 
 
 #change to time-series data type
 seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
 rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+#Remove the selected_past_data_df dataframe from the environment to free up memory.
 rm(selected_past_data_df)
 
 
@@ -3198,6 +3196,8 @@ for (date in dates[2:length(dates)]){
   top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
   
   selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+#Check if there are any missing values (NA) in the 'RET.USD' column of selected_past_data_df. If there are missing values, create a list of stock IDs with missing data and remove those stocks from the top_20_stock_id list.
   
    if(any(is.na(selected_past_data_df))){
      missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
@@ -3666,7 +3666,7 @@ for (date in dates[2:length(dates)]){
   else{
     print(date)
     print("- negative perfomance.")
-    
+  
   }
 }
 
@@ -3733,6 +3733,34 @@ weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
+### weighted_result_quarterly_3_var_20
+```{r}
+
+weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### weighted_result_quarterly_5_var_20
+```{r}
+
+weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_5_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
 ### Performance
 ```{r}
 load("../Original_Dataset/GBR_DS_monthly.RData")
@@ -3768,6 +3796,7 @@ print(mean(quarterly_6_mean_performance$RET))
 print(sd(quarterly_6_mean_performance$RET))
 print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET))
 
+# annualized return
 a <- mean(quarterly_6_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
@@ -3801,6 +3830,7 @@ print(mean(quarterly_6_cum_performance$RET))
 print(sd(quarterly_6_cum_performance$RET))
 print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
 
+# annualized return
 a <- mean(quarterly_6_cum_performance$RET) *0.01
 print((1+a)^12-1)
 ```
@@ -3833,6 +3863,7 @@ print(mean(quarterly_3_mean_performance$RET))
 print(sd(quarterly_3_mean_performance$RET))
 print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
 
+# annualized return
 a <- mean(quarterly_3_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
@@ -3866,9 +3897,167 @@ print(mean(quarterly_3_cum_performance$RET))
 print(sd(quarterly_3_cum_performance$RET))
 print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
 
+# annualized return
 a <- mean(quarterly_3_cum_performance$RET) *0.01
 print((1+a)^12-1)
 
 ```
 
+###quarterly_3_var_20
+```{r}
+t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
 
+class(t5_3_var_20$ym)
+
+class(DS.monthly$ym)
+t5_3_var_20$ym <- as.yearmon(t5_3_var_20$ym)
+
+t6_3_var_20 <- DS.monthly %>%
+  full_join(t5_3_var_20, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7_3_var_20 <- t6_3_var_20 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym) 
+
+
+quarterly_3_var_performance <- t7_3_var_20  %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup %>% filter(ym >= "1990-01-01")
+
+# expected return
+print(mean(quarterly_3_var_performance$RET))
+# volatility
+print(sd(quarterly_3_var_performance$RET))
+# sharpe ratio
+print(mean(quarterly_3_var_performance$RET)/sd(quarterly_3_var_performance$RET))
+
+write.csv(quarterly_3_var_performance, file = "var_3_performance.csv")
+
+#annualized_return
+anualized_return <- (1+mean(quarterly_3_var_performance$RET) *0.01)^12-1
+print(anualized_return)
+
+#cumulative return
+quarterly_3_var_performance$ym <- as.Date(as.yearmon(quarterly_3_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_var_performance <- quarterly_3_var_performance[,2]
+rownames(tseri_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
+cumu_quarterly_3_var_performance <- cumsum(tseri_quarterly_3_var_performance)
+
+rownames(cumu_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
+
+# Turnover
+Turnover_3_var <- t5_3_var_20 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_3_var <- Turnover_3_var %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_var$sigma))
+print(n_distinct(Turnover_3_var$ym))
+print(sum(Turnover_3_var$sigma)/n_distinct(Turnover_3_var$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_3_var <- t7_3_var_20 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
+###quarterly_5_var_20
+```{r}
+t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5_5_var_20$ym)
+
+class(DS.monthly$ym)
+t5_5_var_20$ym <- as.yearmon(t5_5_var_20$ym)
+
+t6_5_var_20 <- DS.monthly %>%
+  full_join(t5_5_var_20, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7_5_var_20 <- t6_5_var_20 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_5_var_performance <- t7_5_var_20 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup %>% filter(ym >= "1990-01-01")
+
+print(mean(quarterly_5_var_performance$RET))
+print(sd(quarterly_5_var_performance$RET))
+print(mean(quarterly_5_var_performance$RET)/sd(quarterly_5_var_performance$RET))
+
+
+write.csv(quarterly_5_var_performance, file = "var_5_performance.csv")
+
+#annualized_return
+anualized_return <- (1+mean(quarterly_5_var_performance$RET) *0.01)^12-1
+print(anualized_return)
+
+#cumulative return
+quarterly_5_var_performance$ym <- as.Date(as.yearmon(quarterly_5_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_5_var_performance <- quarterly_5_var_performance[,2]
+rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
+
+rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+
+# Turnover
+Turnover_5_var <- t5_5_var_20 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_5_var <- Turnover_5_var %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_5_var$sigma))
+print(n_distinct(Turnover_5_var$ym))
+print(sum(Turnover_5_var$sigma)/n_distinct(Turnover_5_var$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_5_var <- t7_5_var_20 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_5_var$sigma_i)/n_distinct(Effectiv_N_5_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
