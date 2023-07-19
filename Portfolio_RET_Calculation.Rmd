@@ -19,6 +19,8 @@ library(lubridate)
 library(data.table)
 library(ggplot2)
 library(tibble)
+library(xts)
+library(PerformanceAnalytics)
 ```
 
 ## Change the data format
@@ -110,6 +112,36 @@ load("../Original_Dataset/GBR_DS_monthly.RData")
 DS.monthly$ym <- as.Date(DS.monthly$ym)
 ```
 
+### Risk Free Rate
+```{r}
+load("/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/DTB6_monthly_July01.RData")
+```
+
+```{r}
+
+RF_monthly <- DTB6_monthly %>% 
+  mutate(ym = paste0(substring(ym, 1, 4), "-", substring(ym, 6), "-01")) %>% 
+  filter(ym >= "1990-01-01") %>% 
+  select(ym, DTB6) %>% 
+  rename(RET = DTB6)
+
+a <- mean(RF_monthly$RET) *0.01
+print((1+a)^12-1)
+
+RF_monthly$ym <- as.Date(as.yearmon(RF_monthly$ym))
+
+datelist <- as.list(RF_monthly$ym)
+
+tseri_RF_monthly <- RF_monthly[,2]
+rownames(tseri_RF_monthly) <- RF_monthly$ym
+
+annual_tseri_RF_monthly <- Return.annualized(tseri_RF_monthly,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_mean_performance
+
+StdDev.annualized(tseri_RF_monthly)
+```
+
+
 ###quarterly_6_mean_20
 ```{r}
 
@@ -141,6 +173,21 @@ print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET
 
 a <- mean(quarterly_6_mean_performance$RET) *0.01
 print((1+a)^12-1)
+
+
+# Annualized
+#converted to time series data
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_mean_performance$ym)
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+annual_tseri_quarterly_6_mean_performance <- Return.annualized(tseri_quarterly_6_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_mean_performance
+
+StdDev.annualized(tseri_quarterly_6_mean_performance)
 
 
 # Plot
@@ -181,16 +228,7 @@ print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
 
 ```
 
-```{r}
-quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
 
-tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
-rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
-cumu_quarterly_6_mean_performance <- cumsum(tseri_quarterly_6_mean_performance)
-
-rownames(cumu_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
-write.csv(cumu_quarterly_6_mean_performance,file = "6_mean_cumulative_return.csv")
-```
 
 
 ###quarterly_6_cum_20
@@ -224,6 +262,20 @@ print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
 a <- mean(quarterly_6_cum_performance$RET) *0.01
 print((1+a)^12-1)
 
+
+# Annualized
+#converted to time series data
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+annual_tseri_quarterly_6_cum_performance <- Return.annualized(tseri_quarterly_6_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_cum_performance
+
+StdDev.annualized(tseri_quarterly_6_cum_performance)
 
 
 # Plot
@@ -304,6 +356,21 @@ print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET
 
 a <- mean(quarterly_3_mean_performance$RET) *0.01
 print((1+a)^12-1)
+
+
+# Annualized
+#converted to time series data
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_3_mean_performance$ym)
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+
+annual_tseri_quarterly_3_mean_performance <- Return.annualized(tseri_quarterly_3_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_mean_performance
+
+StdDev.annualized(tseri_quarterly_3_mean_performance)
 
 
 
@@ -387,7 +454,22 @@ a <- mean(quarterly_3_cum_performance$RET) *0.01
 print((1+a)^12-1)
 
 
+# Annualized
+#converted to time series data
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
 
+datelist <- as.list(quarterly_3_cum_performance$ym)
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+StdDev.annualized(tseri_quarterly_3_cum_performance)
+
+
+# Plot
 ggplot(quarterly_3_cum_performance, aes(x = ym, y = RET)) +
   geom_line() +
   labs(x = "ym", y = "Return") +
@@ -423,16 +505,6 @@ Effectiv_N_3_cum <- t7 %>%
 print(sum(Effectiv_N_3_cum$sigma_i)/n_distinct(Effectiv_N_3_cum$ym))
 ```
 
-```{r}
-quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
-
-tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
-rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
-cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
-
-rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
-write.csv(cumu_quarterly_3_cum_performance,file = "3_cum_cumulative_return.csv")
-```
 
 
 ###quarterly_5_var_20
@@ -566,68 +638,80 @@ print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
 
 
 
-```{r}
-save(quarterly_6_mean_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_6_performance.RData")
-save(quarterly_6_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/mean_3_performance.RData")
-save(quarterly_3_mean_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_6_performance.RData")
-save(quarterly_3_cum_performance, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Performance/visual_annual&cumulative_result/cum_3_performance.RData")
-```
 
 
-## Market Return
+
+## Out Performance
+#### Market Return
 ```{r}
-load("../Univariate_Sort_Set.RData")
+load("Univariate_Sort_Set.RData")
 Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
-
 stock_size <- Univariate_Sort_Set
 setorder(stock_size, ym, -MV.USD)
-stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
-stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
-Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
 ```
 
 ```{r}
-Market_RET <- Univariate_Sort_Set_big_small %>% 
+Market_RET <- Univariate_Sort_Set_big %>% 
   select(Id, ym, RET.USD, MV.USD) %>% 
   group_by(ym) %>% 
   mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
   ungroup %>% 
-  arrange(ym, Id)
+  arrange(ym, Id) %>% 
+  filter(ym >= "1990-01-01")
 
 Market_RET_ym <- Market_RET %>% 
   group_by(ym) %>% 
   summarise(Market_RET = mean(MRET))
 
-write.csv(Market_RET_ym, file = "/Users/kojimadamsimith/Desktop/Summer Semester/Advanced Seminar/GBR/SS23_Empirical-Asset-Pricing/Market_RET.csv")
-
 Market_RET_ym <- Market_RET_ym %>% 
   mutate(Market_RET = Market_RET*0.01)
-
-mean_month <- mean(Market_RET_ym$Market_RET)
-mean_year <- (1+mean_month)^12-1
-
-print(mean_month)
-print(mean_year)
-
 ```
 
-### Out Performance
 ```{r}
-annual_6_cum_cumulative_return <- annual_6_cum_cumulative_return %>% 
+annual_market_ret <- Market_RET_ym %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=Market_RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_MKT_RET.USD)
+```
+
+
+### quarterly_6_mean_performance
+```{r}
+annual_6_mean_performance <- quarterly_6_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_mean_performance <- annual_6_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_RET.USD)
 
+mean(annual_6_mean_performance$ANNUAL_RET.USD)
+```
 
 
-out_performance <- annual_6_cum_cumulative_return %>% 
+```{r}
+
+annual_6_mean_out_performance <- annual_6_mean_performance %>% 
   inner_join(annual_market_ret, by = "year") %>% 
   mutate(outperformance = ANNUAL_RET.USD- ANNUAL_MKT_RET.USD)
 
-mean(out_performance$outperformance)
-mean(out_performance$ANNUAL_RET.USD)
+mean(annual_6_mean_out_performance$outperformance)
 
-mean(out_performance$ANNUAL_RET.USD)/sd(out_performance$ANNUAL_RET.USD)
+TE <- sd(annual_6_mean_out_performance$outperformance)
+print(TE)
 
-mean(out_performance$ANNUAL_MKT_RET.USD)
+IR <- mean(annual_6_mean_out_performance$outperformance)/TE
+print(IR)
 ```
 
 ```{r}
@@ -717,7 +801,7 @@ Style_Analysis_Model <- lm(RET~SMB+HML+CMA+RMW+WML, data=StyleAnalysis_Set_cum_3
 summary(Style_Analysis_Model)
 ```
 
-## 5 var
+### 5 var
 ```{r}
 var_5 <- quarterly_5_var_performance
 
@@ -733,7 +817,7 @@ summary(Style_Analysis_Model)
 
 
 
-## 3 var
+### 3 var
 ```{r}
 var_3 <- quarterly_3_var_performance
 
@@ -746,9 +830,5 @@ Style_Analysis_Model <- lm(RET~SMB+HML+CMA+RMW+WML, data=StyleAnalysis_Set_var_3
 
 summary(Style_Analysis_Model)
 ```
-```{r}
-Ids <- quarterly_6_cum_20 %>% 
-  inner_join(DS.static, by = c("Id")) %>% 
-  select(Id, ym, NAME)
-```
+
 
