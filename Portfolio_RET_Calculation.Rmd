@@ -675,6 +675,7 @@ print((1+a)^12-1)
 print(sd(Market_RET_ym$Market_RET))
 b <- sd(Market_RET_ym$Market_RET)
 print(b *sqrt(12))
+print(a/b)
 ```
 
 ```{r}
@@ -703,6 +704,8 @@ annual_6_mean_performance <- annual_6_mean_performance %>%
   select(year, ANNUAL_RET.USD)
 
 mean(annual_6_mean_performance$ANNUAL_RET.USD)
+sd(annual_6_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_6_mean_performance$ANNUAL_RET.USD)/sd(annual_6_mean_performance$ANNUAL_RET.USD))
 ```
 
 
@@ -733,12 +736,13 @@ out_performance <- q_6_m %>%
   inner_join(Market_RET_ym, by = "ym") %>% 
   mutate(outperformance = RET - Market_RET)
 
-mean(out_performance$outperformance)
+a <- mean(out_performance$outperformance)
+print((1+a)^12-1)
 
 TE <- sd(out_performance$outperformance)
 print(TE*sqrt(12))
 
-IR <- mean(out_performance$outperformance)/TE
+IR <- ((1+a)^12-1)/TE
 print(IR)
 ```
 
