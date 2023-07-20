@@ -668,6 +668,13 @@ Market_RET_ym <- Market_RET %>%
 
 Market_RET_ym <- Market_RET_ym %>% 
   mutate(Market_RET = Market_RET*0.01)
+
+print(mean(Market_RET_ym$Market_RET))
+a <- mean(Market_RET_ym$Market_RET)
+print((1+a)^12-1)
+print(sd(Market_RET_ym$Market_RET))
+b <- sd(Market_RET_ym$Market_RET)
+print(b *sqrt(12))
 ```
 
 ```{r}
@@ -714,31 +721,27 @@ IR <- mean(annual_6_mean_out_performance$outperformance)/TE
 print(IR)
 ```
 
-```{r}
-TE <- sd(out_performance$outperformance)
-print(TE)
-```
+
 
 ```{r}
+# Test in approximnation
+q_6_m <- quarterly_6_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+out_performance <- q_6_m %>% 
+  inner_join(Market_RET_ym, by = "ym") %>% 
+  mutate(outperformance = RET - Market_RET)
+
+mean(out_performance$outperformance)
+
+TE <- sd(out_performance$outperformance)
+print(TE*sqrt(12))
+
 IR <- mean(out_performance$outperformance)/TE
 print(IR)
 ```
 
-
-
-```{r}
-DTB <- DTB6_monthly %>% 
-  filter(ym > 1983.11) %>% 
-  group_by(ym) %>% 
-  summarise(rf = mean(DTB6))
-
-(1+mean(DTB$rf)*0.01)^12-1
-
-
-
-SR <- (mean(out_performance$ANNUAL_RET.USD)-mean(DTB$rf))/sd(out_performance$ANNUAL_RET.USD)
-print(SR)
-```
 
 
 
