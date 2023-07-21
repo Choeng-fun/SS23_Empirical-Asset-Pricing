@@ -167,6 +167,20 @@ quarterly_6_mean_performance <- t7 %>%
   ungroup %>% 
   filter(ym >= "1990-01-01")
 
+# Average number of stock
+num_6_mean <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_6_mean$n))
+
+hist(num_6_mean$n)
+
+ggplot(num_6_mean, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")
+
 print(mean(quarterly_6_mean_performance$RET))
 print(sd(quarterly_6_mean_performance$RET))
 print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET))
@@ -254,6 +268,18 @@ quarterly_6_cum_performance <- t7 %>%
   summarise(RET = sum(weight * RET.USD)) %>% 
   ungroup%>% 
   filter(ym >= "1990-01-01")
+
+# Average number of stock
+num_6_cum <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_6_cum$n))
+
+ggplot(num_6_cum, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")
 
 print(mean(quarterly_6_cum_performance$RET))
 print(sd(quarterly_6_cum_performance$RET))
@@ -850,6 +876,9 @@ IR <- mean(annual_3_cum_out_performance$outperformance)/TE
 print(IR)
 ```
 
+###quarterly_5_var_20
+
+###quarterly_3_var_20
 
 ## Style Analysis
 ### 6 mean
@@ -881,6 +910,7 @@ Style_Analysis_Model <- lm(RET~SMB+HML+CMA+RMW+WML, data=StyleAnalysis_Set_cum_6
 summary(Style_Analysis_Model)
 
 ```
+
 ### 3 mean
 ```{r}
 mean_3 <- quarterly_3_mean_performance
