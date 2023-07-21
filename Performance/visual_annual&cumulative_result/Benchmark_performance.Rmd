@@ -9,4 +9,56 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(lubridate)
+library(dplyr)
+library(xts)
+```
+
+
+```{r}
+#save benchmark
+benchmark_monthly_performance <- Market_RET_ym
+save(benchmark_monthly_performance, file = "benchmark_monthly_performance.Rdata")
+write.csv(benchmark_monthly_performance, file = "benchmark_monthly_performance.csv")
+
+```
+
+```{r}
+#benchmark performance
+#change column name
+colnames(benchmark_monthly_performance)[colnames(benchmark_monthly_performance) == "Benchmark"] <- "RET"
+
+colnames(benchmark_monthly_performance)[colnames(benchmark_monthly_performance) == "date"] <- "ym"
+
+benchmark_monthly_performance <- benchmark_monthly_performance %>% 
+  filter(ym >= "1990-01-01")
+
+#monthly
+print(mean(benchmark_monthly_performance$RET))
+print(sd(benchmark_monthly_performance$RET))
+print(mean(benchmark_monthly_performance$RET)/sd(benchmark_monthly_performance$RET))
+```
+
+```{r}
+#benchmark performance
+
+#annualized return
+
+#converted to time series data
+benchmark_monthly_performance$ym <- as.Date(as.yearmon(benchmark_monthly_performance$ym,"%Y.%m"))
+
+datelist <- as.list(benchmark_monthly_performance$ym)
+
+tseri_benchmark_monthly_performance <- benchmark_monthly_performance[,2]
+rownames(tseri_benchmark_monthly_performance) <- benchmark_monthly_performance$ym
+
+
+annual_benchmark_performance <- tseri_benchmark_monthly_performance %>%
+    mutate(year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100)
+```
 
