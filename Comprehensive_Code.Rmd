@@ -3731,7 +3731,7 @@ weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-### weighted_result_quarterly_3_var_20
+#### weighted_result_quarterly_3_var_20
 ```{r}
 
 weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_20 %>%
@@ -3745,7 +3745,7 @@ weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-### weighted_result_quarterly_5_var_20
+#### weighted_result_quarterly_5_var_20
 ```{r}
 
 weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_20 %>%
@@ -3759,13 +3759,13 @@ weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-## 12. Performance
+### Performance
 ```{r}
 load("../Original_Dataset/GBR_DS_monthly.RData")
 DS.monthly$ym <- as.Date(DS.monthly$ym)
 ```
 
-### quarterly_6_mean_20
+#### quarterly_6_mean_20
 ```{r}
 
 t5 <- weighted_result_quarterly_6_mean_20_complete %>% 
@@ -3798,6 +3798,20 @@ print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET
 a <- mean(quarterly_6_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
+# Annualized
+#converted to time series data
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_mean_performance$ym)
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+annual_tseri_quarterly_6_mean_performance <- Return.annualized(tseri_quarterly_6_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_mean_performance
+
+StdDev.annualized(tseri_quarterly_6_mean_performance)
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_6_mean_performance$RET, 1 - confidence_level)
@@ -3805,7 +3819,7 @@ print(VaR)
 
 ```
 
-### quarterly_6_cum_20
+#### quarterly_6_cum_20
 ```{r}
 t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -3837,13 +3851,27 @@ print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
 a <- mean(quarterly_6_cum_performance$RET) *0.01
 print((1+a)^12-1)
 
+# Annualized
+#converted to time series data
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+annual_tseri_quarterly_6_cum_performance <- Return.annualized(tseri_quarterly_6_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_cum_performance
+
+StdDev.annualized(tseri_quarterly_6_cum_performance)
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_6_cum_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
 
-### quarterly_3_mean_20
+#### quarterly_3_mean_20
 ```{r}
 t5 <- weighted_result_quarterly_3_mean_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -3875,6 +3903,20 @@ print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET
 a <- mean(quarterly_3_mean_performance$RET) *0.01
 print((1+a)^12-1)
 
+# Annualized
+#converted to time series data
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_3_mean_performance$ym)
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+
+annual_tseri_quarterly_3_mean_performance <- Return.annualized(tseri_quarterly_3_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_mean_performance
+
+StdDev.annualized(tseri_quarterly_3_mean_performance)
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
@@ -3882,7 +3924,7 @@ print(VaR)
 
 ```
 
-### quarterly_3_cum_20
+#### quarterly_3_cum_20
 ```{r}
 t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -3914,6 +3956,20 @@ print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
 a <- mean(quarterly_3_cum_performance$RET) *0.01
 print((1+a)^12-1)
 
+# Annualized
+#converted to time series data
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_3_cum_performance$ym)
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+StdDev.annualized(tseri_quarterly_3_cum_performance)
+
 
 # value at risk
 confidence_level <- 0.95
@@ -3922,7 +3978,7 @@ print(VaR)
 
 ```
 
-###quarterly_3_var_20
+####quarterly_3_var_20
 ```{r}
 t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -4003,7 +4059,7 @@ VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
 
-###quarterly_5_var_20
+####quarterly_5_var_20
 ```{r}
 t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>% 
   pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
@@ -4081,7 +4137,7 @@ VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
 
-### equaliy weighted for best strategy(6_mean)
+#### equaliy weighted for best strategy(6_mean)
 ```{r}
 ## convert the date type of ym to "Date" in the original dataset
 load("~/SS23_Empirical-Asset-Pricing/Original_Dataset/GBR_DS_monthly.RData")
@@ -4205,6 +4261,212 @@ confidence_level <- 0.95
 VaR <- quantile(equal_weighted_6_mean_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
+
+### Annualization, TE, IR
+#### Market Return
+```{r}
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+```
+
+```{r}
+Market_RET <- Univariate_Sort_Set_big %>% 
+  select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup %>% 
+  arrange(ym, Id) %>% 
+  filter(ym >= "1990-01-01")
+
+Market_RET_ym <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+
+Market_RET_ym <- Market_RET_ym %>% 
+  mutate(Market_RET = Market_RET*0.01)
+
+print(mean(Market_RET_ym$Market_RET))
+a <- mean(Market_RET_ym$Market_RET)
+print((1+a)^12-1)
+print(sd(Market_RET_ym$Market_RET))
+b <- sd(Market_RET_ym$Market_RET)
+print(b *sqrt(12))
+print(a/b)
+```
+
+```{r}
+annual_market_ret <- Market_RET_ym %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=Market_RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_MKT_RET.USD)
+```
+
+
+#### quarterly_6_mean_performance
+```{r}
+annual_6_mean_performance <- quarterly_6_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_mean_performance <- annual_6_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_6_mean_performance$ANNUAL_RET.USD)
+sd(annual_6_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_6_mean_performance$ANNUAL_RET.USD)/sd(annual_6_mean_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+annual_6_mean_out_performance <- annual_6_mean_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD- ANNUAL_MKT_RET.USD)
+
+mean(annual_6_mean_out_performance$outperformance)
+
+TE <- sd(annual_6_mean_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_6_mean_out_performance$outperformance)/TE
+print(IR)
+```
+
+```{r}
+# Test in approximnation, Using monthly return data
+q_6_m <- quarterly_6_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+out_performance <- q_6_m %>% 
+  inner_join(Market_RET_ym, by = "ym") %>% 
+  mutate(outperformance = RET - Market_RET)
+
+a <- mean(out_performance$outperformance)
+print((1+a)^12-1)
+
+TE <- sd(out_performance$outperformance)
+print(TE*sqrt(12))
+
+IR <- ((1+a)^12-1)/TE
+print(IR)
+```
+
+#### quarterly_6_cum_performance
+```{r}
+annual_6_cum_performance <- quarterly_6_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_cum_performance <- annual_6_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_6_cum_performance$ANNUAL_RET.USD)
+sd(annual_6_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_6_cum_performance$ANNUAL_RET.USD)/sd(annual_6_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_6_cum_out_performance <- annual_6_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_6_cum_out_performance$outperformance)
+
+TE <- sd(annual_6_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_6_cum_out_performance$outperformance)/TE
+print(IR)
+```
+
+#### quarterly_3_mean_performance
+```{r}
+annual_3_mean_performance <- quarterly_3_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_mean_performance <- annual_3_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_3_mean_performance$ANNUAL_RET.USD)
+sd(annual_3_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_3_mean_performance$ANNUAL_RET.USD)/sd(annual_3_mean_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_mean_out_performance <- annual_3_mean_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_mean_out_performance$outperformance)
+
+TE <- sd(annual_3_mean_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_mean_out_performance$outperformance)/TE
+print(IR)
+```
+
+#### quarterly_3_cum_performance
+```{r}
+annual_3_cum_performance <- quarterly_3_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_cum_performance <- annual_3_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_3_cum_performance$ANNUAL_RET.USD)
+sd(annual_3_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_3_cum_performance$ANNUAL_RET.USD)/sd(annual_3_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_cum_out_performance <- annual_3_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_cum_out_performance$outperformance)
+
+TE <- sd(annual_3_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_cum_out_performance$outperformance)/TE
+print(IR)
+```
+
+
+
 
 ## 13. visualization for cumulative return
 ```{r}
