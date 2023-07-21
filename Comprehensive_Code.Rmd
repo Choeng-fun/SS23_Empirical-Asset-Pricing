@@ -4262,7 +4262,7 @@ VaR <- quantile(equal_weighted_6_mean_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
 
-### Annualization
+### Annualization, TE, IR
 #### Market Return
 ```{r}
 load("Univariate_Sort_Set.RData")
@@ -4362,6 +4362,110 @@ print(TE*sqrt(12))
 IR <- ((1+a)^12-1)/TE
 print(IR)
 ```
+
+#### quarterly_6_cum_performance
+```{r}
+annual_6_cum_performance <- quarterly_6_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_cum_performance <- annual_6_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_6_cum_performance$ANNUAL_RET.USD)
+sd(annual_6_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_6_cum_performance$ANNUAL_RET.USD)/sd(annual_6_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_6_cum_out_performance <- annual_6_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_6_cum_out_performance$outperformance)
+
+TE <- sd(annual_6_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_6_cum_out_performance$outperformance)/TE
+print(IR)
+```
+
+#### quarterly_3_mean_performance
+```{r}
+annual_3_mean_performance <- quarterly_3_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_mean_performance <- annual_3_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_3_mean_performance$ANNUAL_RET.USD)
+sd(annual_3_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_3_mean_performance$ANNUAL_RET.USD)/sd(annual_3_mean_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_mean_out_performance <- annual_3_mean_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_mean_out_performance$outperformance)
+
+TE <- sd(annual_3_mean_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_mean_out_performance$outperformance)/TE
+print(IR)
+```
+
+#### quarterly_3_cum_performance
+```{r}
+annual_3_cum_performance <- quarterly_3_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_cum_performance <- annual_3_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_3_cum_performance$ANNUAL_RET.USD)
+sd(annual_3_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_3_cum_performance$ANNUAL_RET.USD)/sd(annual_3_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_cum_out_performance <- annual_3_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_cum_out_performance$outperformance)
+
+TE <- sd(annual_3_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_cum_out_performance$outperformance)/TE
+print(IR)
+```
+
+
 
 
 ## 13. visualization for cumulative return
