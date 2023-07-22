@@ -914,11 +914,11 @@ portfolio_returns_WML <- Double_Sort_Set_5_addMOM[!is.na(pf.size) & !is.na(pf.ag
                                      MV.USD)) %>% # vw returns using lagged mcap
   spread(SIZE_MOM,ret.port) %>%
   mutate(
-    Small = (Small.Winner + Small.Neutral + Small.Loser)/3, # just exemplary
-    Big = (Big.Winner + Big.Neutral + Big.Loser)/3,
+    Small = (ifelse(is.na(Small.Winner), 0, Small.Winner) + ifelse(is.na(Small.Neutral), 0, Small.Neutral) + ifelse(is.na(Small.Loser), 0, Small.Loser))/3, # just exemplary
+    Big = (ifelse(is.na(Big.Winner), 0, Big.Winner) + ifelse(is.na(Big.Neutral), 0, Big.Neutral) + ifelse(is.na(Big.Loser), 0, Big.Loser))/3,
     SMB = Small-Big,
-    Winner = (Small.Winner + Big.Winner)/2,
-    Loser = (Small.Loser + Big.Loser)/2,
+    Winner = (replace_na(Small.Winner, 0) + replace_na(Big.Winner, 0))/2,
+    Loser = (replace_na(Small.Loser, 0) + replace_na(Big.Loser, 0))/2,
     WML = Winner-Loser
   )
 
@@ -969,7 +969,10 @@ FF5F_Mom_Set <- merge(portfolio_returns_RMRF_reduced, portfolio_returns_SMB_redu
   merge(.,portfolio_returns_CMA_reduced, by = "ym", all = 1) %>%
   merge(.,portfolio_returns_WML_reduced, by = "ym", all = 1)
 
-save(FF5F_Mom_Set,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Set.RData")
+FF5F_Mom_Performance <- FF5F_Mom_Set %>% as.data.table()
+FF5F_Mom_Performance <- FF5F_Mom_Performance[110:nrow(FF5F_Mom_Set),]
+
+save(FF5F_Mom_Performance,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Performance.RData")
 ```
 
 
@@ -5011,7 +5014,44 @@ print(VaR)
 
 
 
-## 13. visualization for cumulative return
+
+## 13. Style Analysis
+
+```{r}
+load("~/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Performance.RData")
+load("~/Desktop/Empirical Asset Pricing/Repo/Performance/visual_annual&cumulative_result/mean_6_performance.RData"
+)
+
+# benchmark performance
+Benchmark_Performace <- Market_RET[110:nrow(Market_RET),]
+save(Benchmark_Performace,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/Benchmark_Performace.RData")
+
+quarterly_6_mean_performance$ym <-
+  paste(
+    substr(quarterly_6_mean_performance$ym, 1, 4),
+    substr(quarterly_6_mean_performance$ym, 6, 7),
+    sep = "."
+  )
+
+quarterly_6_mean_performance$ym <- as.numeric(quarterly_6_mean_performance$ym)
+Our_Best_Performance <- quarterly_6_mean_performance
+save(Our_Best_Performance,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/Our_Best_Performance.RData")
+
+
+StyleAnalysis_Set <-
+  merge(FF5F_Mom_Set, quarterly_6_mean_performance, by = "ym",all = 1) %>% 
+  na.omit()
+
+Style_Analysis_Model <-
+  lm(RET ~ RMRF + SMB + HML + CMA + RMW + WML, data = StyleAnalysis_Set)
+
+summary(Style_Analysis_Model)
+
+
+```
+
+
+## 14. visualization for cumulative return
 ```{r}
 library(readr)
 library(dplyr)
@@ -5157,27 +5197,6 @@ ggplot(plot.data, aes(x = date, y = value)) +
 
 
 
-## 14. Style Analysis
-
-```{r}
-load("~/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Set.RData")
-load("~/Desktop/Empirical Asset Pricing/Repo/Performance/visual_annual&cumulative_result/mean_6_performance.RData"
-)
-FF5F_Mom_Set_NoNA <- FF5F_Mom_Set %>% na.omit()
-
-quarterly_6_mean_performance$ym <-
-  paste(
-    substr(quarterly_6_mean_performance$ym, 1, 4),
-    substr(quarterly_6_mean_performance$ym, 6, 7),
-    sep = "."
-  )
-
-quarterly_6_mean_performance$ym <- as.numeric(quarterly_6_mean_performance$ym)
-
-StyleAnalysis_Set <-
-  merge(FF5F_Mom_Set, quarterly_6_mean_performance, by = "ym",all = 1)
 
 
-
-```
 
