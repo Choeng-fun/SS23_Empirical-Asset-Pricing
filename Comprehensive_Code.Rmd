@@ -3944,7 +3944,7 @@ weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_2
   mutate(ym=format(ym, format="%Y-%m-%d"))
 ```
 
-### 12.2 Performance
+### 12.2 Performance, Turnover, Effective_N
 ```{r}
 load("../Original_Dataset/GBR_DS_monthly.RData")
 DS.monthly$ym <- as.Date(DS.monthly$ym)
@@ -4661,6 +4661,61 @@ VaR <- quantile(equal_weighted_6_mean_performance$RET, 1 - confidence_level)
 print(VaR)
 ```
 
+#### Market Return
+```{r}
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+```
+
+```{r}
+Market_weight <- Univariate_Sort_Set_big %>% 
+  select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>%
+  mutate(weight = MV.USD/sum(MV.USD,na.rm = TRUE)) %>% 
+  select(ym, Id, weight)
+```
+
+```{r}
+# Turnover
+Turnover_market <- Market_weight %>% 
+  mutate(month = substr(ym, 6, 7)) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_market <- Turnover_market %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_market$sigma))
+print(n_distinct(Turnover_market$ym))
+print(sum(Turnover_market$sigma)/n_distinct(Turnover_market$ym)/2)
+
+
+# Effective N 
+Effective_N_market <- Market_weight %>% 
+  mutate(month = substr(ym, 6, 7)) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_market$sigma_i)/n_distinct(Effective_N_market$ym))
+```
+
 ### 12.3 Annualization, TE, IR
 #### Market Return
 ```{r}
@@ -4706,6 +4761,8 @@ annual_market_ret <- Market_RET_ym %>%
   ungroup() %>%
   mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_MKT_RET.USD)
+
+
 ```
 
 
