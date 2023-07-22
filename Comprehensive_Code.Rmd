@@ -4826,26 +4826,6 @@ VaR <- quantile(annual_6_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
-```{r}
-# Test in approximnation, Using monthly return data
-q_6_m <- quarterly_6_mean_performance %>%
-  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
-  mutate(RET = RET*0.01)
-
-out_performance <- q_6_m %>% 
-  inner_join(Market_RET_ym, by = "ym") %>% 
-  mutate(outperformance = RET - Market_RET)
-
-a <- mean(out_performance$outperformance)
-print((1+a)^12-1)
-
-TE <- sd(out_performance$outperformance)
-print(TE*sqrt(12))
-
-IR <- ((1+a)^12-1)/TE
-print(IR)
-```
-
 #### quarterly_6_cum_performance
 ```{r}
 annual_6_cum_performance <- quarterly_6_cum_performance %>%
