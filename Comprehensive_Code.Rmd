@@ -4192,7 +4192,7 @@ t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>%
 class(t5_3_var_20$ym)
 
 class(DS.monthly$ym)
-t5_3_var_20$ym <- as.yearmon(t5_3_var_20$ym)
+t5_3_var_20$ym <- as.Date(t5_3_var_20$ym)
 
 t6_3_var_20 <- DS.monthly %>%
   full_join(t5_3_var_20, by = c("Id", "ym")) %>% 
@@ -4277,7 +4277,7 @@ t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>%
 class(t5_5_var_20$ym)
 
 class(DS.monthly$ym)
-t5_5_var_20$ym <- as.yearmon(t5_5_var_20$ym)
+t5_5_var_20$ym <- as.Date(t5_5_var_20$ym)
 
 t6_5_var_20 <- DS.monthly %>%
   full_join(t5_5_var_20, by = c("Id", "ym")) %>% 
@@ -4558,7 +4558,7 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_6_mean_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_6_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
@@ -4617,7 +4617,7 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_6_cum_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_6_cum_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
