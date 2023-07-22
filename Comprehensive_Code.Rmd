@@ -5052,6 +5052,101 @@ summary(Style_Analysis_Model)
 
 
 ## 14. visualization for cumulative return
+### Calculate Cumulative Return
+#### quarterly_6_mean
+```{r}
+#annualized
+#converted to time series data
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+# cumulative return
+cumu_quarterly_6_mean_performance <- cumsum(tseri_quarterly_6_mean_performance)
+rownames(cumu_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+write.csv(cumu_quarterly_6_mean_performance,file = "6_mean_cumulative_return.csv")
+```
+
+#### quarterly_3_mean
+```{r}
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+cumu_quarterly_3_mean_performance <- cumsum(tseri_quarterly_3_mean_performance)
+
+rownames(cumu_quarterly_3_mean_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_mean_performance,file = "3_mean_cumulative_return.csv")
+```
+
+#### quarterly_6_cum
+```{r}
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+# cumulative return
+cumu_quarterly_6_cum_performance <- cumsum(tseri_quarterly_6_cum_performance)
+rownames(cumu_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+write.csv(cumu_quarterly_6_cum_performance,file = "6_cum_cumulative_return.csv")
+```
+
+#### quarterly_3_cum
+```{r}
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+# cumulative return
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+write.csv(cumu_quarterly_3_cum_performance,file = "3_cum_cumulative_return.csv")
+```
+
+#### quarterly_5_var
+
+```{r}
+#cumulative return
+quarterly_5_var_performance$ym <- as.Date(as.yearmon(quarterly_5_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_5_var_performance <- quarterly_5_var_performance[,2]
+rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
+
+rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+```
+
+#### quarterly_3_var
+```{r}
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = TRUE)
+annual_tseri_quarterly_3_cum_performance
+
+# cumulative return
+
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+write.csv(cumu_quarterly_3_cum_performance,file = "3_var_cumulative_return.csv")
+```
+
+
+
 ```{r}
 library(readr)
 library(dplyr)
