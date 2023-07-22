@@ -4053,11 +4053,6 @@ Effective_N_6_mean <- t7 %>%
 
 print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
 
-# value at risk
-confidence_level <- 0.95
-VaR <- quantile(quarterly_6_mean_performance$RET, 1 - confidence_level)
-print(VaR)
-
 ```
 
 #### quarterly_6_cum_20
@@ -4133,7 +4128,8 @@ Turnover_6_cum <- t5 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
-  ungroup
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
 
 Turnover_6_cum <- Turnover_6_cum %>% 
   mutate(abs = abs(weight_1 - weight))%>% 
@@ -4237,7 +4233,8 @@ Turnover_3_mean <- t5 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
-  ungroup
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
 
 Turnover_3_mean <- Turnover_3_mean %>% 
   mutate(abs = abs(weight_1 - weight))%>% 
@@ -4341,7 +4338,8 @@ Turnover_3_cum <- t5 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
-  ungroup
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
 
 Turnover_3_cum <- Turnover_3_cum %>% 
   mutate(abs = abs(weight_1 - weight))%>% 
@@ -4420,6 +4418,14 @@ cumu_quarterly_3_var_performance <- cumsum(tseri_quarterly_3_var_performance)
 rownames(cumu_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
 write.csv(cumu_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
 
+# Average number of stock
+num_3_var <- t7_3_var_20 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_3_var$n))
+
 # Turnover
 Turnover_3_var <- t5_3_var_20 %>% 
   mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
@@ -4428,8 +4434,8 @@ Turnover_3_var <- t5_3_var_20 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
-  mutate(weight_1 = replace_na(weight_1, 0))
-  ungroup
+  mutate(weight_1 = replace_na(weight_1, 0)) %>% 
+  ungroup 
 
 Turnover_3_var <- Turnover_3_var %>% 
   mutate(abs = abs(weight_1 - weight))%>% 
@@ -4498,6 +4504,14 @@ cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
 
 rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
 write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+
+# Average number of stock
+num_5_var <- t7_5_var_20 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_5_var$n))
 
 # Turnover
 Turnover_5_var <- t5_5_var_20 %>% 
@@ -4762,6 +4776,15 @@ annual_market_ret <- Market_RET_ym %>%
   ungroup() %>%
   mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_MKT_RET.USD)
+
+mean(annual_market_ret$ANNUAL_MKT_RET.USD)
+sd(annual_market_ret$ANNUAL_MKT_RET.USD)
+print(mean(annual_market_ret$ANNUAL_MKT_RET.USD)/sd(annual_market_ret$ANNUAL_MKT_RET.USD))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_market_ret$ANNUAL_MKT_RET.USD, 1 - confidence_level)
+print(VaR)
 ```
 
 
@@ -4897,7 +4920,7 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_3_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
@@ -4936,7 +4959,7 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_3_cum_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_3_cum_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
@@ -4954,6 +4977,9 @@ annual_5_var_performance <- annual_5_var_performance %>%
   mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_RET.USD)
 
+mean(annual_5_var_performance$ANNUAL_RET.USD)
+sd(annual_5_var_performance$ANNUAL_RET.USD)
+print(mean(annual_5_var_performance$ANNUAL_RET.USD)/sd(annual_5_var_performance$ANNUAL_RET.USD))
 ```
 
 ```{r}
@@ -4972,8 +4998,10 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_5_var_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
+
+
 ```
 
 #### quarterly_3_var_performance
@@ -4990,6 +5018,10 @@ annual_3_var_performance <- annual_3_var_performance %>%
   mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_RET.USD)
 
+
+mean(annual_3_var_performance$ANNUAL_RET.USD)
+sd(annual_3_var_performance$ANNUAL_RET.USD)
+print(mean(annual_3_var_performance$ANNUAL_RET.USD)/sd(annual_3_var_performance$ANNUAL_RET.USD))
 ```
 
 ```{r}
@@ -5008,7 +5040,7 @@ print(IR)
 
 # value at risk
 confidence_level <- 0.95
-VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
+VaR <- quantile(annual_3_var_performance$ANNUAL_RET.USD, 1 - confidence_level)
 print(VaR)
 ```
 
