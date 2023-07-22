@@ -940,10 +940,36 @@ portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SM
 portfolio_returns_SMB[,t.test(SMB)]
 ```
 
-### 3.7 Create Return data of FF5FM Factors + Momentum
+### 3.7 Create Return Data of FF5FM Factors + Momentum
 
 ```{r}
+load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly_July01.RData")
+Market_RET <- read_excel("Market_RET.xlsx")
+DTB6_monthly$ym <- as.numeric(DTB6_monthly$ym)
+portfolio_returns_RMRF <- merge(DTB6_monthly, Market_RET, by = "ym")
 
+portfolio_returns_RMRF_reduced <-
+  portfolio_returns_RMRF %>% mutate(RMRF = Market_RET - DTB6) %>% dplyr::select(ym, RMRF)
+portfolio_returns_SMB_reduced <- portfolio_returns_SMB[,.(ym, SMB)]
+portfolio_returns_HML_reduced <- portfolio_returns_HML[,.(ym, HML)]
+portfolio_returns_RMW_reduced <- portfolio_returns_RMW[,.(ym, RMW)]
+portfolio_returns_CMA_reduced <- portfolio_returns_CMA[,.(ym, CMA)]
+portfolio_returns_WML_reduced <- portfolio_returns_WML[,.(ym, WML)]
+
+portfolio_returns_SMB_reduced$ym <- as.numeric(portfolio_returns_SMB_reduced$ym)
+portfolio_returns_HML_reduced$ym <- as.numeric(portfolio_returns_HML_reduced$ym)
+portfolio_returns_RMW_reduced$ym <- as.numeric(portfolio_returns_RMW_reduced$ym)
+portfolio_returns_CMA_reduced$ym <- as.numeric(portfolio_returns_CMA_reduced$ym)
+portfolio_returns_WML_reduced$ym <- as.numeric(portfolio_returns_WML_reduced$ym)
+
+
+FF5F_Mom_Set <- merge(portfolio_returns_RMRF_reduced, portfolio_returns_SMB_reduced, by = "ym", all = 1) %>% 
+  merge(.,portfolio_returns_HML_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_RMW_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_CMA_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_WML_reduced, by = "ym", all = 1)
+
+save(FF5F_Mom_Set,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Set.RData")
 ```
 
 
@@ -5138,6 +5164,24 @@ ggplot(plot.data, aes(x = date, y = value)) +
 ## 14. Style Analysis
 
 ```{r}
+load("~/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Set.RData")
+load("~/Desktop/Empirical Asset Pricing/Repo/Performance/visual_annual&cumulative_result/mean_6_performance.RData"
+)
+FF5F_Mom_Set_NoNA <- FF5F_Mom_Set %>% na.omit()
+
+quarterly_6_mean_performance$ym <-
+  paste(
+    substr(quarterly_6_mean_performance$ym, 1, 4),
+    substr(quarterly_6_mean_performance$ym, 6, 7),
+    sep = "."
+  )
+
+quarterly_6_mean_performance$ym <- as.numeric(quarterly_6_mean_performance$ym)
+
+StyleAnalysis_Set <-
+  merge(FF5F_Mom_Set, quarterly_6_mean_performance, by = "ym",all = 1)
+
+
 
 ```
 
