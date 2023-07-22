@@ -4025,7 +4025,8 @@ Turnover_6_mean <- t5 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
-  ungroup
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
 
 Turnover_6_mean <- Turnover_6_mean %>% 
   mutate(abs = abs(weight_1 - weight))%>% 
@@ -4035,7 +4036,7 @@ Turnover_6_mean <- Turnover_6_mean %>%
 
 print(sum(Turnover_6_mean$sigma))
 print(n_distinct(Turnover_6_mean$ym))
-print(sum(Turnover_6_mean$sigma)/n_distinct(Turnover_6_mean$ym)/2)
+print(sum(Turnover_6_mean$sigma)/n_distinct(Turnover_6_mean$ym)*0.5)
 
 
 # Effective N 
@@ -4424,6 +4425,7 @@ Turnover_3_var <- t5_3_var_20 %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
   mutate(weight_1 = lead(weight)) %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
   ungroup
 
 Turnover_3_var <- Turnover_3_var %>% 
@@ -4448,10 +4450,6 @@ Effectiv_N_3_var <- t7_3_var_20 %>%
 
 print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
 
-# value at risk
-confidence_level <- 0.95
-VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
-print(VaR)
 ```
 
 ####quarterly_5_var_20
@@ -4761,8 +4759,6 @@ annual_market_ret <- Market_RET_ym %>%
   ungroup() %>%
   mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
   select(year, ANNUAL_MKT_RET.USD)
-
-
 ```
 
 
