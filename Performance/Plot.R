@@ -38,6 +38,12 @@ X6_cum_cumulative_return <- read_csv("Performance/visual_annual&cumulative_resul
 X6_cum_cumulative_return <- X6_cum_cumulative_return %>%
   rename(X6_cum_cumulative_return=RET, date=`...1`)
 
+X6_equal_mean_cumulative_return<- read_csv("Performance/visual_annual&cumulative_result/equal_6_mean_cumulative_return.csv", 
+                                           col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X6_equal_mean_cumulative_return <- X6_equal_mean_cumulative_return %>%
+  rename(X6_equal_mean_cumulative_return=RET, date=`...1`)
+
+
 load("Univariate_Sort_Set.RData")
 Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
 stock_size <- Univariate_Sort_Set
@@ -63,17 +69,21 @@ Market_RET_ym <- Market_RET %>%
   mutate(Benchmark=cumsum(Market_RET)) %>%
   select(date, Benchmark)
 
+#save benchmark
+save(Market_RET_ym, file = "benchmark_monthly_performance.Rdata")
+
 merge.data <- merge(X3_cum_cumulative_return, X3_var_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X3_mean_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X5_var_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X6_mean_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X6_cum_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X6_cum_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X6_equal_mean_cumulative_return, all = TRUE)
 merge.data <- merge(merge.data, Market_RET_ym, all=TRUE)
 
 plot.data <- merge.data %>%
   select(date, X3_cum_cumulative_return, X3_var_cumulative_return, X5_var_cumulative_return, X6_mean_cumulative_return, 
-         X6_cum_cumulative_return, X3_mean_cumulative_return, Benchmark) %>%
+         X6_cum_cumulative_return, X3_mean_cumulative_return,X6_equal_mean_cumulative_return, Benchmark) %>%
   gather(key = "variable", value = "value", -date)
 
 ggplot(plot.data, aes(x = date, y = value)) + 
@@ -82,4 +92,5 @@ ggplot(plot.data, aes(x = date, y = value)) +
     # panel.background = element_rect(fill='transparent'), #transparent panel bg
     plot.background = element_rect(fill='transparent', color=NA), #
   ) 
+
 # + scale_color_manual(values = c("purple", "darkgreen", "darkred", "steelblue"))

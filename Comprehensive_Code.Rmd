@@ -4017,6 +4017,38 @@ annual_tseri_quarterly_6_mean_performance
 
 StdDev.annualized(tseri_quarterly_6_mean_performance)
 
+# Turnover
+Turnover_6_mean <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_6_mean <- Turnover_6_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_mean$sigma))
+print(n_distinct(Turnover_6_mean$ym))
+print(sum(Turnover_6_mean$sigma)/n_distinct(Turnover_6_mean$ym)/2)
+
+
+# Effective N 
+Effective_N_6_mean <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_6_mean_performance$RET, 1 - confidence_level)
@@ -4087,6 +4119,39 @@ annual_tseri_quarterly_6_cum_performance <- Return.annualized(tseri_quarterly_6_
 annual_tseri_quarterly_6_cum_performance
 
 StdDev.annualized(tseri_quarterly_6_cum_performance)
+
+
+# Turnover
+Turnover_6_cum <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_6_cum <- Turnover_6_cum %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_cum$sigma))
+print(n_distinct(Turnover_6_cum$ym))
+print(sum(Turnover_6_cum$sigma)/n_distinct(Turnover_6_cum$ym)/2)
+
+
+# Effective N 
+Effective_N_6_cum <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_6_cum$sigma_i)/n_distinct(Effective_N_6_cum$ym))
 
 # value at risk
 confidence_level <- 0.95
@@ -4160,6 +4225,38 @@ annual_tseri_quarterly_3_mean_performance
 
 StdDev.annualized(tseri_quarterly_3_mean_performance)
 
+# Turnover
+Turnover_3_mean <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_3_mean <- Turnover_3_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_mean$sigma))
+print(n_distinct(Turnover_3_mean$ym))
+print(sum(Turnover_3_mean$sigma)/n_distinct(Turnover_3_mean$ym)/2)
+
+
+# Effective N 
+Effective_N_3_mean <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_3_mean$sigma_i)/n_distinct(Effective_N_3_mean$ym))
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
@@ -4232,6 +4329,39 @@ annual_tseri_quarterly_3_cum_performance
 StdDev.annualized(tseri_quarterly_3_cum_performance)
 
 
+# Turnover
+Turnover_3_cum <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_3_cum <- Turnover_3_cum %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_cum$sigma))
+print(n_distinct(Turnover_3_cum$ym))
+print(sum(Turnover_3_cum$sigma)/n_distinct(Turnover_3_cum$ym)/2)
+
+
+# Effective N 
+Effective_N_3_cum <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_3_cum$sigma_i)/n_distinct(Effective_N_3_cum$ym))
+
+
 # value at risk
 confidence_level <- 0.95
 VaR <- quantile(quarterly_3_cum_performance$RET, 1 - confidence_level)
@@ -4247,7 +4377,7 @@ t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>%
 class(t5_3_var_20$ym)
 
 class(DS.monthly$ym)
-t5_3_var_20$ym <- as.yearmon(t5_3_var_20$ym)
+t5_3_var_20$ym <- as.Date(t5_3_var_20$ym)
 
 t6_3_var_20 <- DS.monthly %>%
   full_join(t5_3_var_20, by = c("Id", "ym")) %>% 
@@ -4288,6 +4418,8 @@ write.csv(cumu_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
 
 # Turnover
 Turnover_3_var <- t5_3_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
   mutate(weight = replace_na(weight, 0)) %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
@@ -4307,6 +4439,8 @@ print(sum(Turnover_3_var$sigma)/n_distinct(Turnover_3_var$ym)/2)
 
 # Effectiv N 
 Effectiv_N_3_var <- t7_3_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
   mutate(w2 = weight^2)%>% 
   group_by(ym) %>% 
   summarise(sigma = sum(w2)) %>% 
@@ -4328,7 +4462,7 @@ t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>%
 class(t5_5_var_20$ym)
 
 class(DS.monthly$ym)
-t5_5_var_20$ym <- as.yearmon(t5_5_var_20$ym)
+t5_5_var_20$ym <- as.Date(t5_5_var_20$ym)
 
 t6_5_var_20 <- DS.monthly %>%
   full_join(t5_5_var_20, by = c("Id", "ym")) %>% 
@@ -4366,6 +4500,8 @@ write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
 
 # Turnover
 Turnover_5_var <- t5_5_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
   mutate(weight = replace_na(weight, 0)) %>%
   arrange(Id, ym) %>% 
   group_by(Id) %>%
@@ -4385,6 +4521,8 @@ print(sum(Turnover_5_var$sigma)/n_distinct(Turnover_5_var$ym)/2)
 
 # Effectiv N 
 Effectiv_N_5_var <- t7_5_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
   mutate(w2 = weight^2)%>% 
   group_by(ym) %>% 
   summarise(sigma = sum(w2)) %>% 
@@ -4602,6 +4740,11 @@ print(TE)
 
 IR <- mean(annual_6_mean_out_performance$outperformance)/TE
 print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_6_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
 ```
 
 ```{r}
@@ -4656,6 +4799,11 @@ print(TE)
 
 IR <- mean(annual_6_cum_out_performance$outperformance)/TE
 print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_6_cum_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
 ```
 
 #### quarterly_3_mean_performance
@@ -4690,6 +4838,11 @@ print(TE)
 
 IR <- mean(annual_3_mean_out_performance$outperformance)/TE
 print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
+print(VaR)
 ```
 
 #### quarterly_3_cum_performance
@@ -4724,8 +4877,84 @@ print(TE)
 
 IR <- mean(annual_3_cum_out_performance$outperformance)/TE
 print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_cum_performance$RET, 1 - confidence_level)
+print(VaR)
 ```
 
+#### quarterly_5_var_performance
+```{r}
+annual_5_var_performance <- quarterly_5_var_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_5_var_performance <- annual_5_var_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+```
+
+```{r}
+
+annual_5_var_out_performance <- annual_5_var_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_5_var_out_performance$outperformance)
+
+TE <- sd(annual_5_var_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_5_var_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_3_var_performance
+```{r}
+annual_3_var_performance <- quarterly_3_var_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_var_performance <- annual_3_var_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+```
+
+```{r}
+
+annual_3_var_out_performance <- annual_3_var_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_var_out_performance$outperformance)
+
+TE <- sd(annual_3_var_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_var_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
 
 
 
