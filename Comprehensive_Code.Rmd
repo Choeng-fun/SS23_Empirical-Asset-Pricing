@@ -28,6 +28,12 @@ library(tseries)
 library(TSstudio)
 library(forecast)
 library(tidyverse)
+
+library(tibble)
+library(ggplot2)
+library(quadprog)
+library(IntroCompFinR)
+library(PerformanceAnalytics)
 ```
 
 
@@ -416,29 +422,29 @@ panel_reduced_sd <- panel_reduced %>%
 
 ```{r}
 #Check the number of outstanding data
-trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
+#trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
-count_table <- trad[,.N,by=Id]
-trad <- trad[count_table[N>12]$Id]
+#count_table <- trad[,.N,by=Id]
+#trad <- trad[count_table[N>12]$Id]
 ```
 
 ```{r}
 #Select only necessary variables from the comprehensive data set 
-panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
+#panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
 
 # Find the length of history of each stock, and filter out stocks that has a history less than 12 months
 
-count_table <- panel_reduced_TO[,.N,by=Id]
-panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
+#count_table <- panel_reduced_TO[,.N,by=Id]
+#panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
 
 #WC05651 Common Shares Traded - Annual #WC05301 Common Shares Outstanding
-panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
-panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
-panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
+#panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
+#panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
+#panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
 
-panel_reduced_TO <- panel_reduced_TO %>% dplyr::select(Id, ym, MV.USD, RET.USD, `T/O`)
+#panel_reduced_TO <- panel_reduced_TO %>% dplyr::select(Id, ym, MV.USD, RET.USD, `T/O`)
 ```
 
 ### 2.7 Growth
@@ -492,8 +498,6 @@ names(panel_reduced_sps) <- c("Id","ym","MV.USD","RET.USD", "SPS")
 ### 2.8 Momentum Variables
 
 #### 2.8.1 Momentum_12_2 
-
-cumulative return
 
 ```{r}
 # Select only necessary variables from the comprehensive data set
@@ -995,7 +999,6 @@ Univariate_Sort_Set <- panel_reduced_MRP %>%
   full_join(panel_reduced_beta_3 ,by = c("Id", "ym", "MV.USD", "RET.USD"))  %>% 
   full_join(panel_reduced_sigma_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_sd, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  full_join(panel_reduced_TO, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_eps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_sps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_MV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
@@ -1007,7 +1010,9 @@ Univariate_Sort_Set <- panel_reduced_MRP %>%
   full_join(panel_reduced_NSI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_CEI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
   full_join(panel_reduced_IA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
-  dplyr::select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_3, Mom_12_2, DY, ROE, ROA, Beta_3, Sigma_3, SD, `T/O`, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
+  dplyr::select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_3, Mom_12_2, DY, ROE, ROA, Beta_3, Sigma_3, SD, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
+
+
 ```
 
 
@@ -2610,12 +2615,55 @@ Consider the result of double sort, univariate sort, and Fama-Macbeth regression
 
 ## 7. Lewellen's Method (calculating coefficient)
 
+```{r}
+load("../../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+### 7.1 Selected Factors: Sigma_3, B/Mm, CEI, Log_MV, Alpha_3, RSI
+```{r}
+coef_cross_sectional_6 <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(intercept=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.bmm=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.cei=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[4],
+                                              gamma.logmv=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[5],
+                                              gamma.alpha3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[6],
+                                              gamma.rsi=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[7])
+                              ,by=ym]
+```
 
 ```{r}
-factor <- c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI")
-cols <- paste0("coef.", factor)
-coef_cross_sectional_avg <- cbind(coef_cross_sectional, mean36 = rollmeanr(coef_cross_sectional[, ..cols], 36, fill = NA))
-coef_cross_sectional_avg <- cbind(coef_cross_sectional_avg, cummean = cumsum(coef_cross_sectional[, ..cols]) / seq_along(coef_cross_sectional[, ym]))
+#Rolling Mean and Cumulative Mean
+cols_6 <- colnames(coef_cross_sectional_6[, -1])
+setorder(coef_cross_sectional_6, ym)
+data_lewellen_6 <- cbind(coef_cross_sectional_6, mean36 = rollmeanr(coef_cross_sectional_6[, ..cols_6], 36, fill = NA))
+data_lewellen_6 <- cbind(data_lewellen_6, cummean = cumsum(coef_cross_sectional_6[, ..cols_6]) / seq_along(data_lewellen_6[, ym]))
+```
+
+### 7.2 Selected Factors: Log_MV, Alpha_3, RSI
+
+```{r}
+coef_cross_sectional_3 <- Univariate_Sort_Set_big_small[!is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(intercept=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.logmv=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.alpha3=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.rsi=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[4])
+                              ,by=ym]
+```
+
+###Rolling Mean and Cumulative Mean
+
+```{r}
+cols_3 <- colnames(coef_cross_sectional_3[, -1])
+ setorder(coef_cross_sectional_3, ym)
+ data_lewellen_3 <- cbind(coef_cross_sectional_3, mean36 = rollmeanr(coef_cross_sectional_3[, ..cols_3], 36, fill = NA))
+ data_lewellen_3 <- cbind(data_lewellen_3, cummean = cumsum(coef_cross_sectional_3[, ..cols_3]) / seq_along(data_lewellen_3[, ym]))
 ```
 
 
@@ -3871,7 +3919,7 @@ for (date in dates[2:length(dates)]){
 weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -3884,7 +3932,7 @@ weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean
 weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -3897,7 +3945,7 @@ weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean
 weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_6_cum_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -3911,7 +3959,7 @@ weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_2
 weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_3_cum_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -3925,7 +3973,7 @@ weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_2
 weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_3_var_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -3939,7 +3987,7 @@ weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_2
 weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_5_var_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
@@ -4171,7 +4219,7 @@ t5$ym <- as.Date(t5$ym)
 
 t6 <- DS.monthly %>%
   full_join(t5, by = c("Id", "ym")) %>% 
-  select(Id, ym, weight, RET.USD)
+  dplyr::select(Id, ym, weight, RET.USD)
 
 t7 <- t6 %>% 
   filter(!is.na(weight) & !is.na(RET.USD)) %>% 
@@ -4877,7 +4925,7 @@ annual_3_mean_performance <- annual_3_mean_performance %>%
     summarise(PROD=prod(RET.USD_PLUS_1)) %>%
   ungroup() %>%
   mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
-  select(year, ANNUAL_RET.USD)
+  dplyr::select(year, ANNUAL_RET.USD)
 
 mean(annual_3_mean_performance$ANNUAL_RET.USD)
 sd(annual_3_mean_performance$ANNUAL_RET.USD)
@@ -5216,7 +5264,7 @@ Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
 
 
 Market_RET <- Univariate_Sort_Set_big %>% 
-  select(Id, ym, RET.USD, MV.USD) %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
   group_by(ym) %>% 
   mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
   ungroup %>% 
@@ -5229,7 +5277,7 @@ Market_RET_ym <- Market_RET %>%
   mutate(date=as.Date(as.yearmon(ym, "%Y.%m"))) %>%
   arrange(date) %>%
   mutate(Benchmark=cumsum(Market_RET)) %>%
-  select(date, Benchmark)
+  dplyr::select(date, Benchmark)
 
 merge.data <- merge(X3_cum_cumulative_return, X3_var_cumulative_return, all=TRUE)
 merge.data <- merge(merge.data, X3_mean_cumulative_return, all=TRUE)
@@ -5261,7 +5309,7 @@ merge.data <- merge.data %>%
 
 
 plot.data_cum <- merge.data %>%
-  select(date,
+  dplyr::select(date,
     `X6_roll`,
     `X3_roll`,
     `X6_cum`,
@@ -5273,7 +5321,7 @@ plot.data_cum <- merge.data %>%
   rename(Strategy = variable)
 
 plot.data_equal <- merge.data %>%
-  select(date,
+  dplyr::select(date,
     `X6_roll`,
     `X6_roll(equal weight)`,
     Benchmark) %>%
