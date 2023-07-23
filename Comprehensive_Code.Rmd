@@ -947,7 +947,6 @@ portfolio_returns_SMB[,t.test(SMB)]
 ### 3.7 Create Return Data of FF5FM Factors + Momentum
 
 ```{r}
-load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly_July01.RData")
 Market_RET <- read_excel("Market_RET.xlsx")
 DTB6_monthly$ym <- as.numeric(DTB6_monthly$ym)
 portfolio_returns_RMRF <- merge(DTB6_monthly, Market_RET, by = "ym")
