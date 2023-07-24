@@ -57,8 +57,8 @@ coef_cross_sectional_6 <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.in
 ```{r}
 cols_6 <- colnames(coef_cross_sectional_6[, -1])
 setorder(coef_cross_sectional_6, ym)
-data_lewellen_6 <- cbind(coef_cross_sectional_6, mean36 = rollmeanr(coef_cross_sectional_6[, ..cols], 36, fill = NA))
-data_lewellen_6 <- cbind(data_lewellen_6, cummean = cumsum(coef_cross_sectional_6[, ..cols]) / seq_along(data_lewellen_6[, ym]))
+data_lewellen_6 <- cbind(coef_cross_sectional_6, mean36 = rollmeanr(coef_cross_sectional_6[, ..cols_6], 36, fill = NA))
+data_lewellen_6 <- cbind(data_lewellen_6, cummean = cumsum(coef_cross_sectional_6[, ..cols_6]) / seq_along(data_lewellen_6[, ym]))
 ```
 
 ```{r}

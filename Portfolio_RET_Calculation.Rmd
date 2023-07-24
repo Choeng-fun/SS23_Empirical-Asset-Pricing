@@ -28,7 +28,7 @@ library(PerformanceAnalytics)
 ```{r}
 weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
-  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d"))%>%
   select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
@@ -42,7 +42,7 @@ weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean
 weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
   mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
   mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
-  select(ym, everything()) %>%
+  dplyr::select(ym, everything()) %>%
   mutate_all(~replace(., is.na(.), -Inf)) %>%
   complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
   fill(names(.), .direction= "down") %>%
