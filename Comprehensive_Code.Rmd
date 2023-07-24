@@ -3139,12 +3139,10 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
@@ -3283,12 +3281,12 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
+
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
@@ -3416,12 +3414,11 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
+
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
@@ -3564,12 +3561,11 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
+
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
@@ -3700,12 +3696,11 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
+
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
@@ -3854,12 +3849,11 @@ rm(selected_past_data_df)
 
 #use past 24months return to construct the expected return and covariance
 mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
-#use excess return to calculate the covariance
-seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j = names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
 
-cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+
+cov_mat_month <- cov(seri_selected_past_data_df)
 rm(seri_selected_past_data_df)
-rm(seri_selected_past_data_df_excess_return)
+
 
 tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
 
