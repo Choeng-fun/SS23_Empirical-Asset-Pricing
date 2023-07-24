@@ -2333,13 +2333,13 @@ portfolio_returns_sd[,t.test(`Ret_SD`)]
 ```{r}
 
 #Univariate_Sort_Set_TO <- Univariate_Sort_Set[!is.na(`T/O`),c("Id","ym","MV.USD","RET.USD","T/O")]
-#setorder(Univariate_Sort_Set_TO,ym,`T/O`) 
+#setorder(Univariate_Sort_Set_TO,ym,`T/O`)
 #Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[, Decile := ntile(`T/O`, 10), by = ym]
 #Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
 
 #portfolio_returns_TO <- Univariate_Sort_Set_TO %>%
 #  group_by(ym,Decile)%>%
-#  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+#  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
 #  spread(Decile,ret.port) %>%
 #  mutate(`Ret_T/O` = `10`-`1`)
 
