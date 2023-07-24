@@ -324,7 +324,7 @@ panel_reduced_OA <- panel_reduced_OA %>% dplyr::select(Id, ym, MV.USD, RET.USD, 
 ```{r}
 # We use the return of 6-month Treasury Bill as the risk free rate. 
 # The data is downloaded from https://fred.stlouisfed.org/series/DTB6
-#load("~/Desktop/Empirical Asset Pricing/repo/DTB6_monthly.RData")
+load("DTB6_monthly_July01.RData")
 
 # merging panel_country with DTB6_monthly(risk free rate) 
 panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
@@ -947,7 +947,24 @@ portfolio_returns_SMB[,t.test(SMB)]
 ### 3.7 Create Return Data of FF5FM Factors + Momentum
 
 ```{r}
-Market_RET <- read_excel("Market_RET.xlsx")
+# Please run the first Univariate_Sort_Set in 4.1 Univariate Sort Dataset Preparation
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+
+Market_RET <- Univariate_Sort_Set_big_small %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup
+
+Market_RET <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+
 DTB6_monthly$ym <- as.numeric(DTB6_monthly$ym)
 portfolio_returns_RMRF <- merge(DTB6_monthly, Market_RET, by = "ym")
 
@@ -4792,7 +4809,7 @@ Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
 
 ```{r}
 Market_RET <- Univariate_Sort_Set_big %>% 
-  select(Id, ym, RET.USD, MV.USD) %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
   group_by(ym) %>% 
   mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
   ungroup %>% 
