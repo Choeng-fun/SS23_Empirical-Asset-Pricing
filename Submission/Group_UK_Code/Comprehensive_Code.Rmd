@@ -1,0 +1,5404 @@
+---
+title: "Comprehensive_Code"
+author: "Yuru Chen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## 0. Library
+
+```{r}
+library(data.table)
+library(tidyr)
+library(tidyverse)
+library(rollRegres)
+library(roll)
+library(zoo)
+library(dplyr)
+
+library(vars)
+library(mFilter)
+library(tseries)
+library(TSstudio)
+library(forecast)
+library(tidyverse)
+
+library(tibble)
+library(ggplot2)
+library(quadprog)
+library(IntroCompFinR)
+library(PerformanceAnalytics)
+```
+
+
+## 1. Merge the Three Original Dataset into One
+
+```{r}
+# Load the 3 original dataset
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_DS_monthly.RData")
+load("~/Desktop/Empirical Asset Pricing/repo/Original_Dataset/GBR_WS_yearly.RData")
+
+DS_monthly <- as.data.table(DS.monthly)
+WS_yearly <- as.data.table(WS.yearly)
+
+DS_monthly[,month:=month(Date)]
+DS_monthly[,year:=year(Date)]
+DS_monthly[,hcdec:=ifelse(month >= 7, year-1, year-2)]
+DS_monthly[, c("country","Date"):=NULL]
+DS_monthly <- DS_monthly[,c(1,19,18,2,20,3:17)]
+
+WS_yearly[,c("country","Stock"):=NULL]
+WS_yearly <- WS_yearly[,c(1,5,2,4,3,6:109)]
+
+panel_country <- merge(x=DS_monthly, y=WS_yearly, by.x = c("Id","hcdec"), by.y = c("Id","Year"), all= 1)
+panel_country[month %in% 1:9, month_new:=paste("0",month,sep = "")] 
+panel_country[month %in% 10:12, month_new:=month] 
+panel_country$ym <- paste(panel_country$year,panel_country$month_new,sep = ".")
+panel_country[,month_new:=NULL]
+
+# save(panel_country,file="panel_country_June30.RData")
+```
+
+## 2. Variable Creation
+
+### 2.1 Size Variables
+
+#### 2.1.1 Log_MV
+
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_lnMV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_lnMV[,.N,by=Id]
+panel_reduced_lnMV <- panel_reduced_lnMV[count_table[N>12]$Id]
+
+#WC05001 Market Price, WC05476 Book Value per Share
+panel_reduced_lnMV <- panel_reduced_lnMV[, Log_MV := log(MV.USD)]
+
+panel_reduced_lnMV <- panel_reduced_lnMV %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, Log_MV)
+```
+
+
+### 2.2 Value Variables
+
+#### 2.2.1 B/M and B/Mm
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_val<- panel_country[!is.na(RET.USD),c("Id","year","month","ym","MV.USD","MV","RET.USD","WC03501", "WC03263", "WC01551", "WC18100", "WC18198","WC04860")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_val[,.N,by=Id]
+panel_reduced_val <- panel_reduced_val[count_table[N>12]$Id]
+
+# Book value = common equity (WC03501) + deferred taxes (WC03263) 
+panel_reduced_val <- panel_reduced_val[,Book_Value := WC03501 + coalesce(WC03263, 0)]
+
+panel_reduced_val[,MV_lag_7:=lag(MV,7), by = "Id"]
+panel_reduced_val[,MV_lag_8:=lag(MV,8), by = "Id"]
+panel_reduced_val[,MV_lag_9:=lag(MV,9), by = "Id"]
+panel_reduced_val[,MV_lag_10:=lag(MV,10), by = "Id"]
+panel_reduced_val[,MV_lag_11:=lag(MV,11), by = "Id"]
+panel_reduced_val[,MV_lag_12:=lag(MV,12), by = "Id"]
+panel_reduced_val[,MV_lag_13:=lag(MV,13), by = "Id"]
+panel_reduced_val[,MV_lag_14:=lag(MV,14), by = "Id"]
+panel_reduced_val[,MV_lag_15:=lag(MV,15), by = "Id"]
+panel_reduced_val[,MV_lag_16:=lag(MV,16), by = "Id"]
+panel_reduced_val[,MV_lag_17:=lag(MV,17), by = "Id"]
+panel_reduced_val[,MV_lag_18:=lag(MV,18), by = "Id"]
+
+panel_reduced_val[,MV_last_dec:=0]
+panel_reduced_val[month==1,MV_last_dec:=MV_lag_13, by = "Id"]
+panel_reduced_val[month==2,MV_last_dec:=MV_lag_14, by = "Id"]
+panel_reduced_val[month==3,MV_last_dec:=MV_lag_15, by = "Id"]
+panel_reduced_val[month==4,MV_last_dec:=MV_lag_16, by = "Id"]
+panel_reduced_val[month==5,MV_last_dec:=MV_lag_17, by = "Id"]
+panel_reduced_val[month==6,MV_last_dec:=MV_lag_18, by = "Id"]
+panel_reduced_val[month==7,MV_last_dec:=MV_lag_7, by = "Id"]
+panel_reduced_val[month==8,MV_last_dec:=MV_lag_8, by = "Id"]
+panel_reduced_val[month==9,MV_last_dec:=MV_lag_9, by = "Id"]
+panel_reduced_val[month==10,MV_last_dec:=MV_lag_10, by = "Id"]
+panel_reduced_val[month==11,MV_last_dec:=MV_lag_11, by = "Id"]
+panel_reduced_val[month==12,MV_last_dec:=MV_lag_12, by = "Id"]
+
+# Earnings are measured before extraordinary items (WC01551)
+# WC18100 Enterprise value, WC18198 Earnings before Interest, Taxes, Depreciation & Amortization (EBITDA)
+# C/P: Cash flow-to- price. Cash flow is defined as operating cash flow (WC04860).
+
+panel_reduced_val <- panel_reduced_val[,`B/M`:= Book_Value/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`B/Mm`:= Book_Value/(MV*1000)]
+```
+
+#### 2.2.2 E/P and E/Pm
+```{r}
+panel_reduced_val <- panel_reduced_val[,`E/P` := WC01551/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`E/Pm` := WC01551/(MV*1000)]
+```
+
+#### 2.2.3 C/P and C/Pm
+```{r}
+panel_reduced_val <- panel_reduced_val[,`C/P` := WC04860/(MV_last_dec*1000)]
+panel_reduced_val <- panel_reduced_val[,`C/Pm` := WC04860/(MV*1000)]
+```
+
+
+#### 2.2.4 EBITDA/EV
+```{r}
+panel_reduced_val <- panel_reduced_val[,`EBITDA/EV` := WC18198/WC18100]
+panel_reduced_val <- panel_reduced_val %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, `B/M`,`B/Mm`,  `E/P`, `E/Pm`, `C/P`, `C/Pm`,  `EBITDA/EV`)
+```
+
+
+### 2.3 Yield
+
+#### 2.3.1 DY
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_yield<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05101", "WC05001")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_yield[,.N,by=Id]
+panel_reduced_yield <- panel_reduced_yield[count_table[N>12]$Id]
+
+#WC05101 Dividends per Share WC05001 Market Price
+#Dividend Yield = Dividends Per Share / Price Per Share
+panel_reduced_yield <- panel_reduced_yield[, DY:= WC05101/WC05001*100]
+panel_reduced_yield <- panel_reduced_yield %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, DY)
+```
+
+### 2.4 Quality 
+
+#### 2.4.1 ROE
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_ROE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551", "WC03501", "WC03263")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_ROE[,.N,by=Id]
+panel_reduced_ROE <- panel_reduced_ROE[count_table[N>12]$Id]
+
+#earnings before extra- ordinary items (WC01551)
+#common equity (WC03501) plus deferred taxes (WC03263)
+panel_reduced_ROE <- panel_reduced_ROE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_ROE <- panel_reduced_ROE[,ROE:=WC01551/Book_Equity] 
+
+panel_reduced_ROE <- panel_reduced_ROE %>% dplyr::select(Id, ym, MV.USD, RET.USD, ROE)
+
+```
+
+#### 2.4.2 ROA
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_ROA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01551","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_ROA[,.N,by=Id]
+panel_reduced_ROA <- panel_reduced_ROA[count_table[N>12]$Id]
+
+#earnings before extraordinary items (WC01551) divided by total assets (WC02999)
+panel_reduced_ROA <- panel_reduced_ROA[,ROA:=WC01551/WC02999] 
+
+panel_reduced_ROA <- panel_reduced_ROA %>% dplyr::select(Id, ym, MV.USD, RET.USD, ROA)
+```
+
+#### 2.4.3 GP/A
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_GPA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01001","WC01501","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_GPA[,.N,by=Id]
+panel_reduced_GPA <- panel_reduced_GPA[count_table[N>12]$Id]
+
+#gross profits-to-assets is net sales or revenues (WC01001) minus cost of goods sold (WC01501) both divided by total assets (WC02999)
+panel_reduced_GPA <- panel_reduced_GPA[,`GP/A`:=(WC01001-WC01501)/WC02999] 
+
+panel_reduced_GPA <- panel_reduced_GPA %>% dplyr::select(Id, ym, MV.USD, RET.USD, `GP/A`)
+```
+
+#### 2.4.4 OP/BE
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_OPBE <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC03501","WC03263","WC01001","WC01051","WC01251","WC01101")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_OPBE[,.N,by=Id]
+panel_reduced_OPBE <- panel_reduced_OPBE[count_table[N>12]$Id]
+
+#Operating profits-to-book equity. We measure operating profits-to-book equity as in Fama and French (2015) as sales or revenues (WC01001) minus cost of goods sold (WC01051), minus selling, general, and administrative expenses (WC01101), minus interest expense (WC01251); all divided by book equity.
+panel_reduced_OPBE <- panel_reduced_OPBE[,Book_Equity:=WC03501+WC03263]
+panel_reduced_OPBE <- panel_reduced_OPBE[,`OP/BE`:=(WC01001-WC01051-WC01101-WC01251)/Book_Equity] 
+
+panel_reduced_OPBE <- panel_reduced_OPBE %>% dplyr::select(Id, ym, MV.USD, RET.USD, `OP/BE`)
+```
+
+
+#### 2.4.5 NOA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_NOA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999","WC02001","WC03255","WC03426","WC03995")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_NOA[,.N,by=Id]
+panel_reduced_NOA <- panel_reduced_NOA[count_table[N>12]$Id]
+
+#NOA: Net operating assets. As in Hirshleifer et al. (2004), net operating assets in June of year y are defined as operating assets minus operating liabilities for the fiscal year ending in calendar year y − 1; all deflated by total assets (WC02999) for the fiscal year ending in calendar year y − 2. Operating assets is total assets (WC02999) minus cash and short-term investment (WC02001). Operating liabilities is total assets minus short-term and long- term debt (WC03255), minus minority interest (WC03426), minus preferred stock and common equity (WC03995).
+
+panel_reduced_NOA <- panel_reduced_NOA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_TA_2 = shift(WC02999, n = 24)) %>%
+  mutate(Lagged_Cash = shift(WC02001, n = 12)) %>% 
+  mutate(Lagged_SD = shift(WC03255, n = 12)) %>% 
+  mutate(Lagged_Minority = shift(WC03426, n = 12)) %>% 
+  mutate(Lagged_Prefered = shift(WC03995, n = 12)) %>% 
+  mutate(Operating_Asset = Lagged_TA_2 - Lagged_Cash) %>% 
+  mutate(Operating_Liabilit = Lagged_TA_2 - Lagged_SD - Lagged_Minority - Lagged_Prefered) %>% 
+  mutate(NOA = Operating_Asset - Operating_Liabilit) %>% 
+  ungroup
+
+panel_reduced_NOA <- panel_reduced_NOA %>% dplyr::select(Id, ym, MV.USD, RET.USD, NOA)
+```
+
+#### 2.4.6 OA
+```{r}
+#Select only necessary variables from the comprehensive data set 
+panel_reduced_OA <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC01151","WC02201","WC02001","WC03101","WC03051","WC03063")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+count_table <- panel_reduced_OA[,.N,by=Id]
+panel_reduced_OA <- panel_reduced_OA[count_table[N>12]$Id]
+
+#OA: Operating accruals. Following Sloan (1996), we define operating accruals as the change in operating working capital minus depreciation, depletion, and amortization (WC01151, zero if missing); all deflated by total assets (WC02999). Change in operating working capital is the change in current assets (WC02201) minus change in cash and short- term investments (WC02001), minus change in current liabilities (WC03101), plus change in debt in current liabilities (WC03051), plus change in income taxes payable (WC03063, zero if missing). Operating accruals in June of year y are measured from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1.
+
+panel_reduced_OA <- panel_reduced_OA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_Current_Asset_2 = shift(WC02201, n = 24)) %>%
+  mutate(Lagged_Current_Asset = shift(WC02201, n = 12)) %>% 
+  mutate(Change_Current_Asset = Lagged_Current_Asset - Lagged_Current_Asset_2) %>% 
+  mutate(Lagged_Cash_Short_2 = shift(WC02001, n = 24)) %>%
+  mutate(Lagged_Cash_Short = shift(WC02001, n = 12)) %>% 
+  mutate(Change_Cash_Short = Lagged_Cash_Short - Lagged_Cash_Short_2) %>% 
+  mutate(Lagged_Current_Liability_2 = shift(WC03101, n = 24)) %>%
+  mutate(Lagged_Current_Liability = shift(WC03101, n = 12)) %>%
+  mutate(Change_Current_Liability = Lagged_Current_Liability - Lagged_Current_Liability_2)%>% 
+  mutate(Lagged_Debt_in_2 = shift(WC03051, n = 24)) %>%
+  mutate(Lagged_Debt_in = shift(WC03051, n = 12)) %>%
+  mutate(Change_Debt_in = Lagged_Debt_in - Lagged_Debt_in_2) %>%
+  mutate(Lagged_Income_Tax_2 = shift(WC03063, n = 24)) %>%
+  mutate(Lagged_Income_Tax = shift(WC03063, n = 12)) %>%
+  mutate(Change_Income_Tax = Lagged_Income_Tax - Lagged_Income_Tax_2)%>%
+  mutate(Lagged_Dep = shift(WC01151, n = 12))%>% 
+  mutate(Change_in_Ope_Wor_Cap = Change_Current_Asset - Change_Cash_Short - Change_Current_Liability + Change_Debt_in + Change_Income_Tax) %>% 
+  mutate(OA = Change_in_Ope_Wor_Cap - Lagged_Dep) %>% 
+  ungroup
+
+panel_reduced_OA <- panel_reduced_OA %>% dplyr::select(Id, ym, MV.USD, RET.USD, OA)
+```
+
+### 2.5 Low Volatility
+
+#### 2.5.1 Beta_3
+
+```{r}
+# We use the return of 6-month Treasury Bill as the risk free rate. 
+# The data is downloaded from https://fred.stlouisfed.org/series/DTB6
+load("DTB6_monthly_July01.RData")
+
+# merging panel_country with DTB6_monthly(risk free rate) 
+panel_reduced <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+
+# Create the market return as the market-capitaliation-weighted average of the return of all stocks for every month
+panel_reduced[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+
+# Excess Return of individual stocks
+panel_reduced[, Ex_RET.USD:=RET.USD-DTB6]
+
+# Market Risk Premium (MRP)
+panel_reduced[, MRP.USD:=MRET.USD-DTB6]
+panel_reduced <- setorderv(panel_reduced, c("ym"))
+
+# Create a function to calculate beta and alpha
+coef.fun <- . %>% as.data.frame %>% lm %>% .$coefficients
+
+# Create a function to calculate Sigma
+resid.fun <- . %>% as.data.frame %>% lm %>% .$residuals
+
+# calcuate Beta and alpha using 36-month data
+coef_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           dplyr::select(., ym, RET.USD),
+           coef = dplyr::select(., Ex_RET.USD, MRP.USD) %>%
+             rollapplyr(36, coef.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+
+# calcuate Sigma using 36-month data
+resid_36 <- panel_reduced %>%
+  group_by(Id) %>%
+  do(cbind(
+           dplyr::select(., ym, RET.USD),
+           resid = dplyr::select(., Ex_RET.USD, MRP.USD) %>%
+             rollapplyr(36, resid.fun, by.column = FALSE, fill = NA)
+           )) %>%
+  ungroup
+
+```
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_beta_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_beta_3[,.N,by=Id]
+panel_reduced_beta_3 <- panel_reduced_beta_3[count_table[N>12]$Id]
+
+panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
+  dplyr::select(Id, ym, MV.USD) %>% 
+  full_join(coef_36, by = c("Id", "ym"))
+
+names(panel_reduced_beta_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
+
+panel_reduced_beta_3 <- panel_reduced_beta_3 %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, Beta_3)
+```
+
+#### 2.5.2 Sigma_3
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sigma_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sigma_3[,.N,by=Id]
+panel_reduced_sigma_3<- panel_reduced_sigma_3[count_table[N>12]$Id]
+
+panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
+  dplyr::select(Id, ym, MV.USD) %>% 
+  full_join(resid_36, by = c("Id", "ym")) %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, `resid.36`)
+
+names(panel_reduced_sigma_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Sigma_3")
+
+panel_reduced_sigma_3 <- panel_reduced_sigma_3 %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, Sigma_3)
+```
+
+#### 2.5.3 SD
+
+```{r}
+#Monthly standard deviation
+panel_reduced_sd <- panel_reduced %>%
+  group_by(Id)%>%
+  mutate(SD=rollapply(RET.USD,12,sd,align='right',fill=NA)) %>%
+  ungroup %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, SD)
+```
+
+### 2.6 liquidity
+#### 2.6.1 T/O
+
+```{r}
+#Check the number of outstanding data
+#trad <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301", "WC08006")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+#count_table <- trad[,.N,by=Id]
+#trad <- trad[count_table[N>12]$Id]
+```
+
+```{r}
+#Select only necessary variables from the comprehensive data set 
+#panel_reduced_TO <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05651", "WC05301")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+
+#count_table <- panel_reduced_TO[,.N,by=Id]
+#panel_reduced_TO <- panel_reduced_TO[count_table[N>12]$Id]
+
+#WC05651 Common Shares Traded - Annual #WC05301 Common Shares Outstanding
+#panel_reduced_TO <- panel_reduced_TO[,Lagged_Out := shift(WC05301, n = 12)]
+#panel_reduced_TO[,Avg_Out := (WC05301 + Lagged_Out)/2]
+#panel_reduced_TO <- panel_reduced_TO[, `T/O`:=WC05651/Avg_Out] 
+
+#panel_reduced_TO <- panel_reduced_TO %>% dplyr::select(Id, ym, MV.USD, RET.USD, `T/O`)
+```
+
+### 2.7 Growth
+#### 2.7.1 EPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_eps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC05202")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_eps[,.N,by=Id]
+panel_reduced_eps <- panel_reduced_eps[count_table[N>12]$Id]
+
+#WC05202 EPS, WC05508 SPS
+panel_reduced_eps <- panel_reduced_eps %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_EPS = shift(WC05202, n = 12)) %>%
+  mutate(Growth_Rate_EPS = (WC05202 - Lagged_EPS) / Lagged_EPS *100) %>% 
+  ungroup
+
+panel_reduced_eps <- panel_reduced_eps %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, Growth_Rate_EPS)
+
+names(panel_reduced_eps) <- c("Id","ym","MV.USD","RET.USD", "EPS")
+```
+
+#### 2.7.2 SPS
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_sps<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "WC05508")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_sps[,.N,by=Id]
+panel_reduced_sps <- panel_reduced_sps[count_table[N>12]$Id]
+
+#WC05508 SPS
+panel_reduced_sps <- panel_reduced_sps %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_SPS = shift(WC05508, n = 12)) %>%
+  mutate(Growth_Rate_SPS = (WC05508 - Lagged_SPS) / Lagged_SPS *100) %>% 
+  ungroup
+
+panel_reduced_sps <- panel_reduced_sps %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, Growth_Rate_SPS)
+
+names(panel_reduced_sps) <- c("Id","ym","MV.USD","RET.USD", "SPS")
+```
+
+
+### 2.8 Momentum Variables
+
+#### 2.8.1 Momentum_12_2 
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_momentum <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_momentum[,.N,by=Id]
+panel_reduced_momentum <- panel_reduced_momentum[count_table[N>12]$Id]
+
+# Define a function to find the lagged value of return for a stock
+create_lag <- function(x, n) c(rep(NA, n), head(x, -n))
+
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_momentum[, Before2 := create_lag(RET.USD, 2)/100, by = Id]
+panel_reduced_momentum[, Before3 := create_lag(RET.USD, 3)/100, by = Id]
+panel_reduced_momentum[, Before4 := create_lag(RET.USD, 4)/100, by = Id]
+panel_reduced_momentum[, Before5 := create_lag(RET.USD, 5)/100, by = Id]
+panel_reduced_momentum[, Before6 := create_lag(RET.USD, 6)/100, by = Id]
+panel_reduced_momentum[, Before7 := create_lag(RET.USD, 7)/100, by = Id]
+panel_reduced_momentum[, Before8 := create_lag(RET.USD, 8)/100, by = Id]
+panel_reduced_momentum[, Before9 := create_lag(RET.USD, 9)/100, by = Id]
+panel_reduced_momentum[, Before10 := create_lag(RET.USD, 10)/100, by = Id]
+panel_reduced_momentum[, Before11 := create_lag(RET.USD, 11)/100, by = Id]
+panel_reduced_momentum[, Before12 := create_lag(RET.USD, 12)/100, by = Id]
+
+# Momentum_12_2: Past performance of stocks: use geometric mean to calculate the compound return of a stock over the past twelve months, but ignores the previous month
+panel_reduced_momentum <- panel_reduced_momentum[,Mom_12_2:=(((1+Before2)*(1+Before3)*(1+Before4)*(1+Before5)*(1+Before6)*(1+Before7)*(1+Before8)*(1+Before9)*(1+Before10)*(1+Before11)*(1+Before12))-1)*100]
+
+
+panel_reduced_momentum <- panel_reduced_momentum %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, Mom_12_2)
+
+```
+
+#### 2.8.2 RSI
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_rsi <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_rsi[,.N,by=Id]
+panel_reduced_rsi <- panel_reduced_rsi[count_table[N>12]$Id]
+
+
+panel_reduced_rsi[, gain := ifelse(RET.USD>0, RET.USD, 0)]
+panel_reduced_rsi[, loss := ifelse(RET.USD<0, -RET.USD, 0)]
+
+panel_reduced_rsi[, average_gain := frollmean(gain, 12, align = "right"), by = Id]
+panel_reduced_rsi[, average_loss := frollmean(loss, 12, align = "right"), by = Id]
+panel_reduced_rsi[, RS := average_gain/average_loss]
+panel_reduced_rsi[, RSI := 100 - (100/(1+RS))]
+
+panel_reduced_rsi <- panel_reduced_rsi %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, RSI)
+```
+
+#### 2.8.3 Historical Alpha
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_alpha_3 <- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_alpha_3[,.N,by=Id]
+panel_reduced_alpha_3 <- panel_reduced_alpha_3[count_table[N>12]$Id]
+
+panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
+  dplyr::select(Id, ym, MV.USD) %>% 
+  full_join(coef_36, by = c("Id", "ym"))
+
+names(panel_reduced_alpha_3) <- c("Id", "ym", "MV.USD", "RET.USD", "Alpha_3", "Beta_3", "coef_3")
+
+panel_reduced_alpha_3 <- panel_reduced_alpha_3 %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, Alpha_3)
+```
+
+
+
+### 2.9 Others 
+#### 2.9.1 MV
+
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_MV<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_MV[,.N,by=Id]
+panel_reduced_MV <- panel_reduced_MV[count_table[N>12]$Id]
+
+panel_reduced_MV <- panel_reduced_MV %>% 
+  mutate(MV = MV.USD)
+```
+
+#### 2.9.2 AG
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_inv<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_inv[,.N,by=Id]
+panel_reduced_inv <- panel_reduced_inv[count_table[N>12]$Id]
+
+#WC02999 Total Assets
+panel_reduced_inv <- panel_reduced_inv %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_Asset = shift(WC02999, n = 12)) %>%
+  mutate(Lagged_2_Asset = shift(Lagged_Asset, n = 12)) %>%
+  mutate(AG = (Lagged_Asset - Lagged_2_Asset) / Lagged_Asset *100) %>% 
+  ungroup
+
+panel_reduced_inv <- panel_reduced_inv %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, AG)
+```
+
+#### 2.9.3 NSI
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_NSI<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD", "NOSH", "AF")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_NSI[,.N,by=Id]
+panel_reduced_NSI <- panel_reduced_NSI[count_table[N>12]$Id]
+
+#NSI: Net stock issues. Following Pontiff and Woodgate (2008), we measure net stock issues as the difference in the natural logs of split-adjusted shares outstanding in June of year y and year y − 1. Split-adjusted shares outstanding are calculated as shares outstanding (Datastream item NOSH) divided by the adjustment factor (Datastream item AF). We update this variable each June to make it comparable to the yearly updated asset growth variable.
+
+panel_reduced_NSI[,Sprit_Share := NOSH/AF]
+panel_reduced_NSI[,Lagged_Sprit_Share := shift(Sprit_Share, n = 12), by = "Id"]
+panel_reduced_NSI[, NSI_m := log(Sprit_Share/Lagged_Sprit_Share)]
+
+panel_reduced_NSI[,year:=substr(ym,1,4)]
+panel_reduced_NSI[,month:=substr(ym,6,7)]
+
+panel_reduced_NSI[,lag_5 := shift(NSI_m,-1), by = "Id"]
+panel_reduced_NSI[,lag_4:=shift(NSI_m,-2), by = "Id"]
+panel_reduced_NSI[,lag_3:=shift(NSI_m,-3), by = "Id"]
+panel_reduced_NSI[,lag_2:=shift(NSI_m,-4), by = "Id"]
+panel_reduced_NSI[,lag_1:=shift(NSI_m,-5), by = "Id"]
+panel_reduced_NSI[,lag_12:=shift(NSI_m,-6), by = "Id"]
+panel_reduced_NSI[,lag_11:=shift(NSI_m,-7), by = "Id"]
+panel_reduced_NSI[,lag_10:=shift(NSI_m,-8), by = "Id"]
+panel_reduced_NSI[,lag_9:=shift(NSI_m,-9), by = "Id"]
+panel_reduced_NSI[,lag_8:=shift(NSI_m,-10), by = "Id"]
+panel_reduced_NSI[,lag_7:=shift(NSI_m,-11), by = "Id"]
+
+panel_reduced_NSI[,NSI:=0]
+panel_reduced_NSI[month==6, NSI:=NSI_m, by = "Id"]
+panel_reduced_NSI[month==5, NSI:=lag_5, by = "Id"]
+panel_reduced_NSI[month==4, NSI:=lag_4, by = "Id"]
+panel_reduced_NSI[month==3, NSI:=lag_3, by = "Id"]
+panel_reduced_NSI[month==2, NSI:=lag_2, by = "Id"]
+panel_reduced_NSI[month==1, NSI:=lag_1, by = "Id"]
+panel_reduced_NSI[month==12, NSI:=lag_12, by = "Id"]
+panel_reduced_NSI[month==11, NSI:=lag_11, by = "Id"]
+panel_reduced_NSI[month==10, NSI:=lag_10, by = "Id"]
+panel_reduced_NSI[month==9, NSI:=lag_9, by = "Id"]
+panel_reduced_NSI[month==8, NSI:=lag_8, by = "Id"]
+panel_reduced_NSI[month==7, NSI:=lag_7, by = "Id"]
+
+panel_reduced_NSI <- panel_reduced_NSI %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, `NSI`)
+```
+
+
+
+#### 2.9.4 CEI
+```{r, warning=0}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_CEI<- panel_country[!is.na(RET.USD),c("Id","ym","year","month","MV.USD","RET.USD")]
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_CEI[,.N,by=Id]
+panel_reduced_CEI <- panel_reduced_CEI[count_table[N>12]$Id]
+#CEI: Composite equity issuance. Similar to Daniel and Titman (2006), composite equity issuance is defined as the growth rate in the market capitalization not attributable to the total stock return R: log(MCy/MCy−1) − R(y−1,y). For the portfolio formation at the end of June of year y, R(y−1,y) is the cumulative log return (calculated via the total return index, Datastream item RI) from June of year y − 1 to June of year y and MCy is the market capitalization (Datastream item MV) from June of year y. Equity issuance such as stock issues, stock option plans, and share-based compensations and acquisitions increase the composite equity issuance, whereas share repurchases or cash dividends reduce the composite equity issuance. We apply a one-year lookback window and also update this variable only each June to make it comparable to the yearly updated asset growth and net stock issuance variables.
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_MV = shift(MV.USD, n = 12))%>% 
+  mutate(Log_MC = log(MV.USD/Lagged_MV)) %>%
+  mutate(Log_MC = ifelse(is.nan(Log_MC), 0, Log_MC)) %>% 
+  mutate(Log_RET = log(RET.USD+1)) %>% 
+  mutate(Log_RET = ifelse(is.nan(Log_RET), 0, Log_RET)) %>% 
+  ungroup
+# Using the function to find the 12-months-ago, 11-months-ago, ~, 3 months ago return of stock 
+panel_reduced_CEI <- panel_reduced_CEI %>% 
+  group_by(Id) %>% 
+  mutate(Before1 := shift(Log_RET, n = 1)) %>%
+  mutate(Before2 := shift(Log_RET, n = 2)) %>% 
+  mutate(Before3 := shift(Log_RET, n = 3)) %>% 
+  mutate(Before4 := shift(Log_RET, n = 4)) %>% 
+  mutate(Before5 := shift(Log_RET, n = 5)) %>% 
+  mutate(Before6 := shift(Log_RET, n = 6)) %>% 
+  mutate(Before7 := shift(Log_RET, n = 7)) %>% 
+  mutate(Before8 := shift(Log_RET, n = 8)) %>% 
+  mutate(Before9 := shift(Log_RET, n = 9)) %>% 
+  mutate(Before10 := shift(Log_RET, n =10)) %>% 
+  mutate(Before11 := shift(Log_RET, n = 11)) %>% 
+  mutate(Before12 := shift(Log_RET, n = 12)) %>% 
+  mutate(Cum_Log_RET = Before1 +Before2 + Before3 + Before4 + Before5 +Before6 + Before7 +Before8 +Before9 + Before10 +Before11 +Before12) %>% 
+  mutate(CEI_m = Log_MC - Cum_Log_RET) %>%
+  mutate(lag_1:=lag(CEI_m), CEI_a=ifelse((month==6 | is.na(lag_1)), CEI_m, NA)) %>%
+  ungroup
+
+panel_reduced_CEI <- as.data.table(panel_reduced_CEI)
+
+panel_reduced_CEI <- panel_reduced_CEI[, CEI:= na.locf(CEI_a, na.rm=FALSE)]
+
+
+panel_reduced_CEI <- panel_reduced_CEI %>%
+  dplyr::select(Id, ym, MV.USD, RET.USD, `CEI`)
+```
+
+#### 2.9.5 I/A
+```{r}
+# Select only necessary variables from the comprehensive data set
+panel_reduced_IA<- panel_country[!is.na(RET.USD),c("Id","ym","MV.USD","RET.USD","WC02301","WC02101","WC02999")]
+
+# Find the length of history of each stock, and filter out stocks that has a history less than 12 months
+count_table <- panel_reduced_IA[,.N,by=Id]
+panel_reduced_IA <- panel_reduced_IA[count_table[N>12]$Id]
+
+#Investment-to-assets. As in Lyandres et al. (2008), we measure investment-to-assets in June of year y as the change in gross property, plant, and equipment (WC02301) plus the annual change in inventories (WC02101) (both from fiscal year ending in calendar year y − 2 to fiscal year ending in calendar year y − 1) all divided by total assets (WC02999) of year y − 2.
+panel_reduced_IA <- panel_reduced_IA %>% 
+  group_by(Id) %>% 
+  mutate(Lagged_gross = shift(WC02301, n = 12)) %>%
+  mutate(Lagged_2_gross = shift(Lagged_gross, n = 12)) %>%
+  mutate(Lagged_inve = shift(WC02101, n = 12)) %>%
+  mutate(Lagged_2_inve = shift(Lagged_inve, n = 12)) %>%
+   mutate(Lagged_Asset = shift(WC02999, n = 24)) %>%
+  mutate(`I/A` = (Lagged_gross -Lagged_2_gross + Lagged_inve - Lagged_2_inve) / Lagged_Asset) %>% 
+  ungroup
+
+panel_reduced_IA <- panel_reduced_IA %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, `I/A`)
+```
+
+
+## 3. Double Sort
+
+### 3.1 Double Sort Dataset Preparation
+
+```{r}
+
+# Adding the Market risk premium variable
+# Merging panel_country with DTB6_monthly (risk free rate) 
+panel_reduced_MRP <- merge(panel_country[!is.na(RET.USD) & !is.na(MV.USD) & !is.infinite(RET.USD) & !is.infinite(MV.USD), c("Id", "ym","year","month", "RET.USD", "MV.USD")], DTB6_monthly[,c("ym", "DTB6")], by=c("ym"))
+
+panel_reduced_MRP[, MRET.USD:=weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T), by=ym]
+panel_reduced_MRP[, ExRET.USD:=RET.USD-DTB6]
+panel_reduced_MRP[, MRP.USD:=MRET.USD-DTB6]
+
+Double_Sort_Set <- panel_reduced_MRP %>% 
+  full_join(panel_reduced_beta_3, by = c("Id", "ym","RET.USD"))  %>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3)%>%
+  full_join(panel_reduced_MV, by = c("Id", "ym", "RET.USD")) %>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3)%>% 
+  full_join(panel_reduced_val, by = c("Id", "ym","RET.USD"))%>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`)%>% 
+  full_join(panel_reduced_ROE, by = c("Id", "ym","RET.USD"))%>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE)%>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym","RET.USD"))%>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, `B/M`, ROE, AG) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym","RET.USD"))%>% 
+  dplyr::select(Id, ym, year, month, RET.USD, Beta_3, MV.USD, `B/M`, ROE, AG, Mom_12_2)
+
+
+Double_Sort_Set[,hcjun := ifelse(month>=7,year,year-1)]
+Double_Sort_Set <- Double_Sort_Set[complete.cases(Double_Sort_Set$MV.USD)]
+setorder(Double_Sort_Set,ym,-MV.USD)
+
+Double_Sort_Set_copy <- Double_Sort_Set
+```
+
+### 3.2 SMB and HML
+```{r}
+# determine size portfolio allocation from July on using data that's public from end-of-June on
+
+# Double_Sort_Set <- Double_Sort_Set[complete.cases(Double_Sort_Set)]
+
+hlpvariable_size <-  Double_Sort_Set[month==7 & !is.na(MV.USD),
+                                .(pf.size = ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),Id),
+                                by=year]
+
+# Merge the size portfolio allocation back from July Y to June Y+1
+Double_Sort_Set_1_addSize <- merge(Double_Sort_Set,hlpvariable_size,
+                       by.x=c("hcjun","Id"),
+                       by.y=c("year","Id"))
+
+
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_bm <- Double_Sort_Set_1_addSize[month==7 & !is.na(`B/M`) & pf.size=="Big", 
+                                .(bm_bb30 = quantile(`B/M` , probs = c(0.3), na.rm=T),
+                                  bm_bb70 = quantile(`B/M` , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_2_addBM <- merge(Double_Sort_Set_1_addSize,hlpvariable_bm,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_2_addBM[ , pf.bm := ifelse(`B/M`>bm_bb70,"High",ifelse((`B/M`<=bm_bb70 & `B/M`>bm_bb30),"Neutral",ifelse(`B/M`<=bm_bb30,"Low",NA)))]
+
+Double_Sort_Set_2_addBM[, SIZE_VALUE := paste0(pf.size,".",pf.bm)] 
+
+
+portfolio_returns_HML <- Double_Sort_Set_2_addBM[!is.na(pf.size) & !is.na(pf.bm)] %>%
+  group_by(ym,SIZE_VALUE) %>%
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_VALUE,ret.port) %>%
+  mutate(
+    Small = (Small.High + Small.Neutral + Small.Low)/3, # just exemplary
+    Big = (Big.High + Big.Neutral + Big.Low)/3,
+    SMB = Small-Big,
+    High = (Small.High + Big.High)/2,
+    Low = (Small.Low + Big.Low)/2,
+    HML = High-Low
+  )
+
+portfolio_returns_HML <- as.data.table(portfolio_returns_HML)
+portfolio_returns_HML[,t.test(HML)]
+
+```
+
+### 3.3 SMB and RMW
+
+```{r}
+# Determine the ROE breakpoints based on big stocks only
+hlpvariable_roe <- Double_Sort_Set_2_addBM[month==7 & !is.na(ROE) & pf.size=="Big", 
+                                .(roe_bb30 = quantile(ROE , probs = c(0.3), na.rm=T),
+                                  roe_bb70 = quantile(ROE , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_3_addROE <- merge(Double_Sort_Set_2_addBM,hlpvariable_roe,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_3_addROE[ , pf.roe := ifelse(ROE>roe_bb70,"Robust",ifelse((ROE<=roe_bb70 & ROE>roe_bb30),"Neutral",ifelse(ROE<=roe_bb30,"Weak",NA)))]
+
+Double_Sort_Set_3_addROE[, SIZE_PROFITALIIBITY := paste0(pf.size,".",pf.roe)] 
+
+portfolio_returns_RMW <- Double_Sort_Set_3_addROE[!is.na(pf.size) & !is.na(pf.roe)] %>%
+  group_by(ym,SIZE_PROFITALIIBITY) %>%
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_PROFITALIIBITY,ret.port) %>%
+  mutate(
+    Small = (Small.Robust + Small.Neutral + Small.Weak)/3, # just exemplary
+    Big = (Big.Robust + Big.Neutral + Big.Weak)/3,
+    SMB = Small-Big,
+    Robust = (Small.Robust + Big.Robust)/2,
+    Weak = (Small.Weak + Big.Weak)/2,
+    RMW = Robust-Weak
+  )
+
+portfolio_returns_RMW <- as.data.table(portfolio_returns_RMW)
+portfolio_returns_RMW[,t.test(RMW)]
+
+
+```
+
+
+### 3.4 SMB and CMA
+
+```{r}
+# Determine the AG breakpoints based on big stocks only
+hlpvariable_ag <- Double_Sort_Set_3_addROE[month==7 & !is.na(AG) & pf.size=="Big", 
+                                .(ag_bb30 = quantile(AG , probs = c(0.3), na.rm=T),
+                                  ag_bb70 = quantile(AG , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_4_addAG <- merge(Double_Sort_Set_3_addROE,hlpvariable_ag,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_4_addAG[ , pf.ag := ifelse(AG>ag_bb70,"Aggresive",ifelse((AG<=ag_bb70 & AG>ag_bb30),"Neutral",ifelse(AG<=ag_bb30,"Conservative",NA)))]
+
+Double_Sort_Set_4_addAG[, SIZE_INVESTMENT := paste0(pf.size,".",pf.ag)] 
+
+portfolio_returns_CMA <- Double_Sort_Set_4_addAG[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_INVESTMENT) %>%
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_INVESTMENT,ret.port) %>%
+  mutate(
+    Small = (Small.Conservative + Small.Neutral + Small.Aggresive)/3, # just exemplary
+    Big = (Big.Conservative + Big.Neutral + Big.Aggresive)/3,
+    SMB = Small-Big,
+    Conservative = (Small.Conservative + Big.Conservative)/2,
+    Aggresive = (Small.Aggresive + Big.Aggresive)/2,
+    CMA = Conservative-Aggresive
+  )
+
+portfolio_returns_CMA <- as.data.table(portfolio_returns_CMA)
+
+portfolio_returns_CMA[,t.test(CMA)]
+```
+
+
+
+### 3.5 SMB and WML
+
+```{r}
+# Determine the B/M breakpoints based on big stocks only
+hlpvariable_mom <- Double_Sort_Set_4_addAG[month==7 & !is.na(Mom_12_2) & pf.size=="Big", 
+                              .(mom_bb30 = quantile(Mom_12_2 , probs = c(0.3), na.rm=T),
+                                mom_bb70 = quantile(Mom_12_2 , probs = c(0.7), na.rm=T)),
+                                by=year]
+
+Double_Sort_Set_5_addMOM <- merge(Double_Sort_Set_4_addAG,hlpvariable_mom,
+                       by.x=c("hcjun"),
+                       by.y=c("year"))
+
+Double_Sort_Set_5_addMOM[ , pf.mom := ifelse(Mom_12_2>mom_bb70,"Winner",ifelse((Mom_12_2<=mom_bb70 & Mom_12_2>mom_bb30),"Neutral",ifelse(Mom_12_2<=mom_bb30,"Loser",NA)))]
+
+Double_Sort_Set_5_addMOM[, SIZE_MOM := paste0(pf.size,".",pf.mom)] 
+
+portfolio_returns_WML <- Double_Sort_Set_5_addMOM[!is.na(pf.size) & !is.na(pf.ag)] %>%
+  group_by(ym,SIZE_MOM) %>%
+  summarize(ret.port = weighted.mean(RET.USD,
+                                     MV.USD)) %>% # vw returns using lagged mcap
+  spread(SIZE_MOM,ret.port) %>%
+  mutate(
+    Small = (ifelse(is.na(Small.Winner), 0, Small.Winner) + ifelse(is.na(Small.Neutral), 0, Small.Neutral) + ifelse(is.na(Small.Loser), 0, Small.Loser))/3, # just exemplary
+    Big = (ifelse(is.na(Big.Winner), 0, Big.Winner) + ifelse(is.na(Big.Neutral), 0, Big.Neutral) + ifelse(is.na(Big.Loser), 0, Big.Loser))/3,
+    SMB = Small-Big,
+    Winner = (replace_na(Small.Winner, 0) + replace_na(Big.Winner, 0))/2,
+    Loser = (replace_na(Small.Loser, 0) + replace_na(Big.Loser, 0))/2,
+    WML = Winner-Loser
+  )
+
+portfolio_returns_WML <- as.data.table(portfolio_returns_WML)
+
+portfolio_returns_WML[,t.test(WML)]
+```
+
+### 3.6 SMB: Take the average
+```{r}
+portfolio_returns_SMB <- data.table(ym=portfolio_returns_HML$ym,
+                                    SMB_hml= portfolio_returns_HML$SMB,
+                                    SMB_rmw= portfolio_returns_RMW$SMB,
+                                    SMB_cma= portfolio_returns_CMA$SMB,
+                                    SMB_wml= portfolio_returns_WML$SMB)
+
+portfolio_returns_SMB <- portfolio_returns_SMB[,SMB:=(SMB_hml+SMB_rmw+SMB_cma+SMB_wml)/4]
+
+portfolio_returns_SMB[,t.test(SMB)]
+```
+
+### 3.7 Create Return Data of FF5FM Factors + Momentum
+
+```{r}
+# Please run the first Univariate_Sort_Set in 4.1 Univariate Sort Dataset Preparation
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+
+Market_RET <- Univariate_Sort_Set_big_small %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup
+
+Market_RET <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+
+DTB6_monthly$ym <- as.numeric(DTB6_monthly$ym)
+portfolio_returns_RMRF <- merge(DTB6_monthly, Market_RET, by = "ym")
+
+portfolio_returns_RMRF_reduced <-
+  portfolio_returns_RMRF %>% mutate(RMRF = Market_RET - DTB6) %>% dplyr::select(ym, RMRF)
+portfolio_returns_SMB_reduced <- portfolio_returns_SMB[,.(ym, SMB)]
+portfolio_returns_HML_reduced <- portfolio_returns_HML[,.(ym, HML)]
+portfolio_returns_RMW_reduced <- portfolio_returns_RMW[,.(ym, RMW)]
+portfolio_returns_CMA_reduced <- portfolio_returns_CMA[,.(ym, CMA)]
+portfolio_returns_WML_reduced <- portfolio_returns_WML[,.(ym, WML)]
+
+portfolio_returns_SMB_reduced$ym <- as.numeric(portfolio_returns_SMB_reduced$ym)
+portfolio_returns_HML_reduced$ym <- as.numeric(portfolio_returns_HML_reduced$ym)
+portfolio_returns_RMW_reduced$ym <- as.numeric(portfolio_returns_RMW_reduced$ym)
+portfolio_returns_CMA_reduced$ym <- as.numeric(portfolio_returns_CMA_reduced$ym)
+portfolio_returns_WML_reduced$ym <- as.numeric(portfolio_returns_WML_reduced$ym)
+
+
+FF5F_Mom_Set <- merge(portfolio_returns_RMRF_reduced, portfolio_returns_SMB_reduced, by = "ym", all = 1) %>% 
+  merge(.,portfolio_returns_HML_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_RMW_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_CMA_reduced, by = "ym", all = 1) %>%
+  merge(.,portfolio_returns_WML_reduced, by = "ym", all = 1)
+
+FF5F_Mom_Performance <- FF5F_Mom_Set %>% as.data.table()
+FF5F_Mom_Performance <- FF5F_Mom_Performance[110:nrow(FF5F_Mom_Set),]
+
+save(FF5F_Mom_Performance,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Performance.RData")
+```
+
+
+
+
+## 4. Univariate Sort (Equally Weighted)
+
+### 4.1 Univariate Sort Dataset Preparation
+
+```{r}
+Univariate_Sort_Set <- panel_reduced_MRP %>% 
+  full_join(panel_reduced_val, by = c("Id", "ym", "RET.USD","MV.USD")) %>% 
+  full_join(panel_reduced_lnMV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_rsi, by = c("Id", "ym", "MV.USD", "RET.USD")) %>%
+  full_join(panel_reduced_alpha_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_momentum, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_yield ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROE ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_ROA ,by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_beta_3 ,by = c("Id", "ym", "MV.USD", "RET.USD"))  %>% 
+  full_join(panel_reduced_sigma_3, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sd, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_eps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_sps, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_MV, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_GPA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OPBE, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NOA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_OA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_inv, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_NSI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_CEI, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  full_join(panel_reduced_IA, by = c("Id", "ym", "MV.USD", "RET.USD")) %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, `B/M`, `B/Mm`,`E/P`, `E/Pm`,`C/P`, `C/Pm`, `EBITDA/EV`, Log_MV, RSI, Alpha_3, Mom_12_2, DY, ROE, ROA, Beta_3, Sigma_3, SD, EPS, SPS, MV, `GP/A`,`OP/BE`,NOA,OA,AG,NSI,CEI,`I/A`)
+
+
+```
+
+
+### 4.2 Value
+#### 4.2.1 B/M
+```{r}
+# Order stocks based on the B/M, divide them into 10 deciles, and filter the 1st and 10th decile.
+Univariate_Sort_Set_BM <- Univariate_Sort_Set[!is.na(`B/M`) &!is.infinite(`B/M`),c("Id","ym","MV.USD","RET.USD","B/M")]
+
+setorder(Univariate_Sort_Set_BM,ym,-MV.USD) 
+
+Univariate_Sort_Set_BM <-  Univariate_Sort_Set_BM[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[size=="Big"]
+
+Univariate_Sort_Set_BM <- as.data.table(Univariate_Sort_Set_BM)
+setorder(Univariate_Sort_Set_BM,ym,`B/M`) 
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[, Decile := ntile(`B/M`, 10), by = ym]
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_BM <- Univariate_Sort_Set_BM %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/M` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
+
+#### 4.2.2 B/Mm
+```{r}
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set[!is.na(`B/Mm`) & !is.infinite(`B/Mm`),c("Id","ym","MV.USD","RET.USD","B/Mm")]
+
+setorder(Univariate_Sort_Set_BMm,ym,-MV.USD) 
+
+Univariate_Sort_Set_BMm <-  Univariate_Sort_Set_BMm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[size=="Big"]
+
+setorder(Univariate_Sort_Set_BMm,ym,`B/Mm`) 
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[, Decile := ntile(`B/Mm`, 10), by = ym]
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_BMm <- Univariate_Sort_Set_BMm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/Mm` = `10`-`1`)
+
+portfolio_returns_BMm <- as.data.table(portfolio_returns_BMm)
+portfolio_returns_BMm[,t.test(`Ret_B/Mm`)]
+```
+#### 4.2.3 E/P
+```{r}
+Univariate_Sort_Set_EP <- Univariate_Sort_Set[!is.na(`E/P`) &!is.infinite(`E/P`),c("Id","ym","MV.USD","RET.USD","E/P")]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[`E/P` > 0]
+
+setorder(Univariate_Sort_Set_EP,ym,-MV.USD) 
+
+Univariate_Sort_Set_EP <-  Univariate_Sort_Set_EP[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[size=="Big"]
+
+setorder(Univariate_Sort_Set_EP,ym,`E/P`) 
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[, Decile := ntile(`E/P`, 10), by = ym]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EP <- Univariate_Sort_Set_EP %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/P` = `10`-`1`)
+
+portfolio_returns_EP <- as.data.table(portfolio_returns_EP)
+portfolio_returns_EP[,t.test(`Ret_E/P`)]
+```
+
+#### 4.2.4 E/Pm
+```{r}
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set[!is.na(`E/Pm`) &!is.infinite(`E/Pm`),c("Id","ym","MV.USD","RET.USD","E/Pm")]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[`E/Pm` > 0]
+
+setorder(Univariate_Sort_Set_EPm,ym,-MV.USD) 
+
+Univariate_Sort_Set_EPm <-  Univariate_Sort_Set_EPm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_EPm,ym,`E/Pm`) 
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[, Decile := ntile(`E/Pm`, 10), by = ym]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EPm <- Univariate_Sort_Set_EPm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/Pm` = `10`-`1`)
+
+portfolio_returns_EPm <- as.data.table(portfolio_returns_EPm)
+portfolio_returns_EPm[,t.test(`Ret_E/Pm`)]
+```
+#### 4.2.5 C/P
+```{r}
+Univariate_Sort_Set_CP <- Univariate_Sort_Set[!is.na(`C/P`)&!is.infinite(`E/Pm`),c("Id","ym","MV.USD","RET.USD","C/P")]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[`C/P` > 0]
+
+setorder(Univariate_Sort_Set_CP,ym,-MV.USD) 
+
+Univariate_Sort_Set_CP <-  Univariate_Sort_Set_CP[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_CP,ym,`C/P`) 
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[, Decile := ntile(`C/P`, 10), by = ym]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_CP <- Univariate_Sort_Set_CP %>% 
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_C/P` = `10`-`1`)
+
+portfolio_returns_CP <- as.data.table(portfolio_returns_CP)
+portfolio_returns_CP[,t.test(`Ret_C/P`)]
+```
+
+#### 4.2.6 C/Pm
+```{r}
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set[!is.na(`C/Pm`)&!is.infinite(`C/Pm`),c("Id","ym","MV.USD","RET.USD","C/Pm")]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[`C/Pm` > 0]
+
+setorder(Univariate_Sort_Set_CPm,ym,-MV.USD) 
+
+Univariate_Sort_Set_CPm <-  Univariate_Sort_Set_CPm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_CPm,ym,`C/Pm`) 
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[, Decile := ntile(`C/Pm`, 10), by = ym]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_CPm <- Univariate_Sort_Set_CPm %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_C/Pm` = `10`-`1`)
+
+portfolio_returns_CPm <- as.data.table(portfolio_returns_CPm)
+portfolio_returns_CPm[,t.test(`Ret_C/Pm`)]
+```
+
+#### 4.2.7 EBITDA/EV
+```{r}
+Univariate_Sort_Set_EE <- Univariate_Sort_Set[!is.na(`EBITDA/EV`)&!is.infinite(`EBITDA/EV`),c("Id","ym","MV.USD","RET.USD","EBITDA/EV")]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[`EBITDA/EV` > 0]
+
+setorder(Univariate_Sort_Set_EE,ym,-MV.USD) 
+
+Univariate_Sort_Set_EE <-  Univariate_Sort_Set_EE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[size=="Big"]
+
+setorder(Univariate_Sort_Set_EE,ym,`EBITDA/EV`) 
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[, Decile := ntile(`EBITDA/EV`, 10), by = ym]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EE <- Univariate_Sort_Set_EE %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_EBITDA/EV` = `10`-`1`)
+
+portfolio_returns_EE <- as.data.table(portfolio_returns_EE)
+portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
+```
+
+
+### 4.3 Size 
+#### 4.3.1 Log_MV
+```{r}
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set[!is.na(Log_MV)&!is.infinite(Log_MV),c("Id","ym","MV.USD","RET.USD","Log_MV")]
+
+setorder(Univariate_Sort_Set_lnMV,ym,Log_MV) 
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[, Decile := ntile(Log_MV, 10), by = ym]
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_lnMV <- Univariate_Sort_Set_lnMV %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Log_MV` = `10`-`1`)
+
+portfolio_returns_lnMV <- as.data.table(portfolio_returns_lnMV)
+portfolio_returns_lnMV[,t.test(`Ret_Log_MV`)]
+```
+
+#### 4.3.2 MV
+```{r}
+Univariate_Sort_Set_MV <- Univariate_Sort_Set[!is.na(MV)&!is.infinite(MV),c("Id","ym","MV.USD","RET.USD","MV")]
+
+
+setorder(Univariate_Sort_Set_MV,ym,MV) 
+Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[, Decile := ntile(MV, 10), by = ym]
+Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_MV <- Univariate_Sort_Set_MV %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_MV` = `10`-`1`)
+
+portfolio_returns_MV <- as.data.table(portfolio_returns_MV)
+portfolio_returns_MV[,t.test(`Ret_MV`)]
+```
+
+
+### 4.4 Momentum
+#### 4.4.1 RSI
+```{r}
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set[!is.na(RSI)&!is.na(MV),c("Id","ym","MV.USD","RET.USD","RSI")]
+
+setorder(Univariate_Sort_Set_RSI,ym,-MV.USD) 
+
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[size=="Big"]
+
+setorder(Univariate_Sort_Set_RSI,ym,RSI) 
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[, Decile := ntile(RSI, 10), by = ym]
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_RSI <- Univariate_Sort_Set_RSI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_RSI` = `10`-`1`)
+
+portfolio_returns_RSI <- as.data.table(portfolio_returns_RSI)
+portfolio_returns_RSI[,t.test(`Ret_RSI`)]
+```
+
+
+#### 4.4.2 Alpha_3
+```{r}
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set[!is.na(Alpha_3)&!is.na(MV)&!is.infinite(Alpha_3),c("Id","ym","MV.USD","RET.USD","Alpha_3")]
+
+setorder(Univariate_Sort_Set_alpha_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[size=="Big"]
+
+setorder(Univariate_Sort_Set_alpha_3,ym,Alpha_3) 
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[, Decile := ntile(Alpha_3, 10), by = ym]
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_alpha_3 <- Univariate_Sort_Set_alpha_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Alpha_3` = `10`-`1`)
+
+portfolio_returns_alpha_3 <- as.data.table(portfolio_returns_alpha_3)
+portfolio_returns_alpha_3[,t.test(`Ret_Alpha_3`)]
+```
+
+
+#### 4.4.3 Momentum_12_2
+```{r}
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set[!is.na(MV.USD)&!is.infinite(Mom_12_2),c("Id","ym","MV.USD","RET.USD","Mom_12_2")]
+
+
+setorder(Univariate_Sort_Set_momentum,ym,-MV.USD) 
+
+Univariate_Sort_Set_momentum <-  Univariate_Sort_Set_momentum[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[size=="Big"]
+
+setorder(Univariate_Sort_Set_momentum,ym,Mom_12_2) 
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[, Decile := ntile(Mom_12_2, 10), by = ym]
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_momentum <- Univariate_Sort_Set_momentum %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Mom_12_2` = `10`-`1`)
+
+portfolio_returns_momentum <- as.data.table(portfolio_returns_momentum)
+portfolio_returns_momentum[,t.test(`Ret_Mom_12_2`)]
+```
+
+### 4.5 Yield
+
+#### 4.5.1 DY
+```{r}
+Univariate_Sort_Set_yield <- Univariate_Sort_Set[!is.na(DY)&!is.infinite(DY),c("Id","ym","MV.USD","RET.USD","DY")]
+
+setorder(Univariate_Sort_Set_yield,ym,-MV.USD) 
+
+Univariate_Sort_Set_yield <-  Univariate_Sort_Set_yield[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[size=="Big"]
+
+setorder(Univariate_Sort_Set_yield,ym,DY) 
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[, Decile := ntile(DY, 10), by = ym]
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_yield <- Univariate_Sort_Set_yield %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = mean(RET.USD)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_DY` = `10`-`1`)
+
+portfolio_returns_yield <- as.data.table(portfolio_returns_yield)
+portfolio_returns_yield[,t.test(`Ret_DY`)]
+```
+
+
+
+### 4.6 Quality
+#### 4.6.1 ROE
+```{r}
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set[!is.na(ROE)&!is.infinite(ROE),c("Id","ym","MV.USD","RET.USD","ROE")]
+
+setorder(Univariate_Sort_Set_ROE,ym,-MV.USD) 
+
+Univariate_Sort_Set_ROE <-  Univariate_Sort_Set_ROE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[size=="Big"]
+
+setorder(Univariate_Sort_Set_ROE,ym,ROE) 
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[, Decile := ntile(ROE, 10), by = ym]
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_ROE <- Univariate_Sort_Set_ROE %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_ROE` = `10`-`1`)
+
+portfolio_returns_ROE <- as.data.table(portfolio_returns_ROE)
+portfolio_returns_ROE[,t.test(`Ret_ROE`)]
+```
+
+#### 4.6.2 ROA
+```{r}
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set[!is.na(ROA)&!is.infinite(ROA),c("Id","ym","MV.USD","RET.USD","ROA")]
+
+setorder(Univariate_Sort_Set_ROA,ym,-MV.USD) 
+
+Univariate_Sort_Set_ROA <-  Univariate_Sort_Set_ROA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[size=="Big"]
+
+setorder(Univariate_Sort_Set_ROA,ym,ROA) 
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[, Decile := ntile(ROA, 10), by = ym]
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_ROA <- Univariate_Sort_Set_ROA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_ROA` = `10`-`1`)
+
+
+portfolio_returns_ROA <- as.data.table(portfolio_returns_ROA)
+portfolio_returns_ROA[,t.test(`Ret_ROA`)]
+```
+
+#### 4.6.3 GP/A
+```{r}
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set[!is.na(`GP/A`)&!is.infinite(`GP/A`),c("Id","ym","MV.USD","RET.USD","GP/A")]
+
+setorder(Univariate_Sort_Set_GPA,ym,-MV.USD) 
+
+Univariate_Sort_Set_GPA <-  Univariate_Sort_Set_GPA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[size=="Big"]
+
+setorder(Univariate_Sort_Set_GPA,ym,`GP/A`) 
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[, Decile := ntile(`GP/A`, 10), by = ym]
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_GPA <- Univariate_Sort_Set_GPA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_GP/A` = `10`-`1`)
+
+portfolio_returns_GPA <- as.data.table(portfolio_returns_GPA)
+portfolio_returns_GPA[,t.test(`Ret_GP/A`)]
+```
+
+#### 4.6.4 OP/BE
+```{r}
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set[!is.na(`OP/BE`)&!is.infinite(`OP/BE`),c("Id","ym","MV.USD","RET.USD","OP/BE")]
+
+setorder(Univariate_Sort_Set_OPBE,ym,-MV.USD) 
+
+Univariate_Sort_Set_OPBE <-  Univariate_Sort_Set_OPBE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_OPBE,ym,`OP/BE`) 
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[, Decile := ntile(`OP/BE`, 10), by = ym]
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_OPBE <- Univariate_Sort_Set_OPBE %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_OP/BE` = `10`-`1`)
+
+portfolio_returns_OPBE <- as.data.table(portfolio_returns_OPBE)
+portfolio_returns_OPBE[,t.test(`Ret_OP/BE`)]
+```
+
+#### 4.6.5 NOA
+```{r}
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set[!is.na(NOA)&!is.infinite(`NOA`),c("Id","ym","MV.USD","RET.USD","NOA")]
+
+setorder(Univariate_Sort_Set_NOA,ym,-MV.USD) 
+
+Univariate_Sort_Set_NOA <-  Univariate_Sort_Set_NOA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[size=="Big"]
+
+setorder(Univariate_Sort_Set_NOA,ym,NOA) 
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[, Decile := ntile(NOA, 10), by = ym]
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_NOA <- Univariate_Sort_Set_NOA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_NOA` = `10`-`1`)
+
+portfolio_returns_NOA <- as.data.table(portfolio_returns_NOA)
+portfolio_returns_NOA[,t.test(`Ret_NOA`)]
+```
+
+#### 4.6.6 OA
+```{r}
+Univariate_Sort_Set_OA <- Univariate_Sort_Set[!is.na(OA)&!is.infinite(OA),c("Id","ym","MV.USD","RET.USD","OA")]
+
+setorder(Univariate_Sort_Set_OA,ym,-MV.USD) 
+
+Univariate_Sort_Set_OA <-  Univariate_Sort_Set_OA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[size=="Big"]
+
+setorder(Univariate_Sort_Set_OA,ym,OA) 
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[, Decile := ntile(OA, 10), by = ym]
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_OA <- Univariate_Sort_Set_OA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_OA` = `10`-`1`)
+
+portfolio_returns_OA <- as.data.table(portfolio_returns_OA)
+portfolio_returns_OA[,t.test(`Ret_OA`)]
+```
+
+
+### 4.7 Low Volatility
+
+#### 4.7.1 Beta_3
+```{r}
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set[!is.na(Beta_3)&!is.infinite(Beta_3),c("Id","ym","MV.USD","RET.USD","Beta_3")]
+
+setorder(Univariate_Sort_Set_beta_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_beta_3 <-  Univariate_Sort_Set_beta_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[size=="Big"]
+
+setorder(Univariate_Sort_Set_beta_3,ym,Beta_3) 
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[, Decile := ntile(Beta_3, 10), by = ym]
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_beta_3 <- Univariate_Sort_Set_beta_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_Beta_3` = `10`-`1`)
+
+portfolio_returns_beta_3 <- as.data.table(portfolio_returns_beta_3)
+portfolio_returns_beta_3[,t.test(`Ret_Beta_3`)]
+```
+
+#### 4.7.2 Sigma_3
+```{r}
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set[!is.na(Sigma_3)&!is.infinite(Sigma_3),c("Id","ym","MV.USD","RET.USD","Sigma_3")]
+
+setorder(Univariate_Sort_Set_sigma_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_sigma_3 <-  Univariate_Sort_Set_sigma_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_sigma_3,ym,Sigma_3) 
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[, Decile := ntile(Sigma_3, 10), by = ym]
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sigma_3 <- Univariate_Sort_Set_sigma_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_Sigma_3` = `10`-`1`)
+
+portfolio_returns_sigma_3 <- as.data.table(portfolio_returns_sigma_3)
+portfolio_returns_sigma_3[,t.test(`Ret_Sigma_3`)]
+```
+
+
+
+#### 4.7.3 SD
+```{r}
+Univariate_Sort_Set_sd <- Univariate_Sort_Set[!is.na(SD)&!is.infinite(SD),c("Id","ym","MV.USD","RET.USD","SD")]
+
+setorder(Univariate_Sort_Set_sd,ym,-MV.USD) 
+
+Univariate_Sort_Set_sd <-  Univariate_Sort_Set_sd[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_sd,ym,SD) 
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[, Decile := ntile(SD, 10), by = ym]
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sd <- Univariate_Sort_Set_sd %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_SD` = `10`-`1`)
+
+portfolio_returns_sd <- as.data.table(portfolio_returns_sd)
+portfolio_returns_sd[,t.test(`Ret_SD`)]
+```
+
+
+### 4.8 Liquidity
+#### 4.8.1 T/O
+```{r}
+
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set[!is.na(`T/O`),c("Id","ym","MV.USD","RET.USD","T/O")]
+#setorder(Univariate_Sort_Set_TO,ym,`T/O`) 
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[, Decile := ntile(`T/O`, 10), by = ym]
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+#portfolio_returns_TO <- Univariate_Sort_Set_TO %>%
+#  group_by(ym,Decile)%>%
+#  summarize(ret.port = mean(RET.USD)) %>% 
+#  spread(Decile,ret.port) %>%
+#  mutate(`Ret_T/O` = `10`-`1`)
+
+#portfolio_returns_TO <- as.data.table(portfolio_returns_TO)
+#portfolio_returns_TO[,t.test(`Ret_T/O`)]
+```
+
+### 4.9 Growth
+#### 4.9.1 EPS
+```{r}
+Univariate_Sort_Set_eps <- Univariate_Sort_Set[!is.na(EPS)&!is.infinite(EPS),c("Id","ym","MV.USD","RET.USD","EPS")]
+
+setorder(Univariate_Sort_Set_eps,ym,-MV.USD) 
+
+Univariate_Sort_Set_eps <-  Univariate_Sort_Set_eps[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_eps,ym,EPS) 
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[, Decile := ntile(EPS, 10), by = ym]
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_eps <- Univariate_Sort_Set_eps %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_EPS` = `10`-`1`)
+
+portfolio_returns_eps <- as.data.table(portfolio_returns_eps)
+portfolio_returns_eps[,t.test(`Ret_EPS`)]
+```
+
+#### 4.9.2 SPS
+```{r}
+Univariate_Sort_Set_sps <- Univariate_Sort_Set[!is.na(SPS)&!is.infinite(SPS),c("Id","ym","MV.USD","RET.USD","SPS")]
+
+
+setorder(Univariate_Sort_Set_sps,ym,-MV.USD) 
+
+Univariate_Sort_Set_sps <-  Univariate_Sort_Set_sps[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_sps,ym,SPS) 
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[, Decile := ntile(SPS, 10), by = ym]
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sps <- Univariate_Sort_Set_sps %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_SPS` = `10`-`1`)
+
+portfolio_returns_sps <- as.data.table(portfolio_returns_sps)
+portfolio_returns_sps[,t.test(`Ret_SPS`)]
+```
+
+### 4.10 Investment
+#### 4.10.1 AG
+```{r}
+Univariate_Sort_Set_inv <- Univariate_Sort_Set[!is.na(AG)&!is.infinite(AG),c("Id","ym","MV.USD","RET.USD","AG")]
+
+setorder(Univariate_Sort_Set_inv,ym,-MV.USD) 
+
+Univariate_Sort_Set_inv <-  Univariate_Sort_Set_inv[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[size=="Big"]
+
+setorder(Univariate_Sort_Set_inv,ym,AG) 
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[, Decile := ntile(AG, 10), by = ym]
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_inv <- Univariate_Sort_Set_inv %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_AG` = `10`-`1`)
+
+portfolio_returns_inv <- as.data.table(portfolio_returns_inv)
+portfolio_returns_inv[,t.test(`Ret_AG`)]
+```
+
+#### 4.10.2 NSI
+```{r}
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set[!is.na(NSI)&!is.infinite(NSI)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","NSI")]
+
+setorder(Univariate_Sort_Set_NSI,ym,-MV.USD) 
+
+Univariate_Sort_Set_NSI <-  Univariate_Sort_Set_NSI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[size=="Big"]
+
+setorder(Univariate_Sort_Set_NSI,ym,NSI) 
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[, Decile := ntile(NSI, 10), by = ym]
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_NSI <- Univariate_Sort_Set_NSI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_NSI` = `10`-`1`)
+
+portfolio_returns_NSI <- as.data.table(portfolio_returns_NSI)
+portfolio_returns_NSI[,t.test(`Ret_NSI`)]
+```
+
+#### 4.10.3 CEI
+```{r}
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set[!is.na(CEI)&!is.infinite(CEI)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","CEI")]
+
+setorder(Univariate_Sort_Set_CEI,ym,-MV.USD) 
+
+Univariate_Sort_Set_CEI <-  Univariate_Sort_Set_CEI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[size=="Big"]
+
+setorder(Univariate_Sort_Set_CEI,ym,CEI) 
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[, Decile := ntile(CEI, 10), by = ym]
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_CEI <- Univariate_Sort_Set_CEI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_CEI` = `10`-`1`)
+
+portfolio_returns_CEI <- as.data.table(portfolio_returns_CEI)
+portfolio_returns_CEI[,t.test(`Ret_CEI`)]
+```
+
+#### 4.10.4 I/A
+```{r}
+Univariate_Sort_Set_IA <- Univariate_Sort_Set[!is.na(`I/A`)&!is.infinite(`I/A`)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","I/A")]
+
+setorder(Univariate_Sort_Set_IA,ym,-MV.USD) 
+
+Univariate_Sort_Set_IA <-  Univariate_Sort_Set_IA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[size=="Big"]
+
+setorder(Univariate_Sort_Set_IA,ym,`I/A`) 
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[, Decile := ntile(`I/A`, 10), by = ym]
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_IA <- Univariate_Sort_Set_IA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = mean(RET.USD)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_I/A` = `10`-`1`)
+
+portfolio_returns_IA <- as.data.table(portfolio_returns_IA)
+portfolio_returns_IA[,t.test(`Ret_I/A`)]
+```
+
+
+
+## 5. Univariate Sort (Value Weighted)
+
+### 5.1 Value
+#### 5.1.1 B/M
+```{r}
+# Order stocks based on the B/M, divide them into 10 deciles, and filter the 1st and 10th decile.
+Univariate_Sort_Set_BM <- Univariate_Sort_Set[!is.na(`B/M`) &!is.infinite(`B/M`),c("Id","ym","MV.USD","RET.USD","B/M")]
+
+setorder(Univariate_Sort_Set_BM,ym,-MV.USD) 
+
+Univariate_Sort_Set_BM <-  Univariate_Sort_Set_BM[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[size=="Big"]
+
+setorder(Univariate_Sort_Set_BM,ym,`B/M`) 
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[, Decile := ntile(`B/M`, 10), by = ym]
+Univariate_Sort_Set_BM <- Univariate_Sort_Set_BM[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+# Long the 10th decile, short the 1st decile and get the return
+portfolio_returns_BM <- Univariate_Sort_Set_BM %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/M` = `10`-`1`)
+
+# Test if the return is significantly different from 0
+portfolio_returns_BM <- as.data.table(portfolio_returns_BM)
+portfolio_returns_BM[,t.test(`Ret_B/M`)]
+```
+
+#### 5.1.2 B/Mm
+```{r}
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set[!is.na(`B/Mm`) & !is.infinite(`B/Mm`),c("Id","ym","MV.USD","RET.USD","B/Mm")]
+
+setorder(Univariate_Sort_Set_BMm,ym,-MV.USD) 
+
+Univariate_Sort_Set_BMm <-  Univariate_Sort_Set_BMm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_BMm,ym,`B/Mm`) 
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[, Decile := ntile(`B/Mm`, 10), by = ym]
+Univariate_Sort_Set_BMm <- Univariate_Sort_Set_BMm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_BMm <- Univariate_Sort_Set_BMm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_B/Mm` = `10`-`1`)
+
+portfolio_returns_BMm <- as.data.table(portfolio_returns_BMm)
+portfolio_returns_BMm[,t.test(`Ret_B/Mm`)]
+```
+
+#### 5.1.3 E/P
+```{r}
+Univariate_Sort_Set_EP <- Univariate_Sort_Set[!is.na(`E/P`) &!is.infinite(`E/P`),c("Id","ym","MV.USD","RET.USD","E/P")]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[`E/P` > 0]
+
+setorder(Univariate_Sort_Set_EP,ym,-MV.USD) 
+
+Univariate_Sort_Set_EP <-  Univariate_Sort_Set_EP[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_EP,ym,`E/P`) 
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[, Decile := ntile(`E/P`, 10), by = ym]
+Univariate_Sort_Set_EP <- Univariate_Sort_Set_EP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EP <- Univariate_Sort_Set_EP %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/P` = `10`-`1`)
+
+portfolio_returns_EP <- as.data.table(portfolio_returns_EP)
+portfolio_returns_EP[,t.test(`Ret_E/P`)]
+```
+#### 5.1.4 E/Pm
+```{r}
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set[!is.na(`E/Pm`) &!is.infinite(`E/Pm`),c("Id","ym","MV.USD","RET.USD","E/Pm")]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[`E/Pm` > 0]
+
+setorder(Univariate_Sort_Set_EPm,ym,-MV.USD) 
+
+Univariate_Sort_Set_EPm <-  Univariate_Sort_Set_EPm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_EPm,ym,`E/Pm`) 
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[, Decile := ntile(`E/Pm`, 10), by = ym]
+Univariate_Sort_Set_EPm <- Univariate_Sort_Set_EPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EPm <- Univariate_Sort_Set_EPm %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_E/Pm` = `10`-`1`)
+
+portfolio_returns_EPm <- as.data.table(portfolio_returns_EPm)
+portfolio_returns_EPm[,t.test(`Ret_E/Pm`)]
+```
+#### 5.1.5 C/P
+```{r}
+Univariate_Sort_Set_CP <- Univariate_Sort_Set[!is.na(`C/P`)&!is.infinite(`E/Pm`),c("Id","ym","MV.USD","RET.USD","C/P")]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[`C/P` > 0]
+
+setorder(Univariate_Sort_Set_CP,ym,-MV.USD) 
+
+Univariate_Sort_Set_CP <-  Univariate_Sort_Set_CP[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_CP,ym,`C/P`) 
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[, Decile := ntile(`C/P`, 10), by = ym]
+Univariate_Sort_Set_CP <- Univariate_Sort_Set_CP[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_CP <- Univariate_Sort_Set_CP %>% 
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_C/P` = `10`-`1`)
+
+portfolio_returns_CP <- as.data.table(portfolio_returns_CP)
+portfolio_returns_CP[,t.test(`Ret_C/P`)]
+```
+
+#### 5.1.6 C/Pm
+```{r}
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set[!is.na(`C/Pm`)&!is.infinite(`C/Pm`),c("Id","ym","MV.USD","RET.USD","C/Pm")]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[`C/Pm` > 0]
+
+setorder(Univariate_Sort_Set_CPm,ym,-MV.USD) 
+
+Univariate_Sort_Set_CPm <-  Univariate_Sort_Set_CPm[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_CPm,ym,`C/Pm`) 
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[, Decile := ntile(`C/Pm`, 10), by = ym]
+Univariate_Sort_Set_CPm <- Univariate_Sort_Set_CPm[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_CPm <- Univariate_Sort_Set_CPm %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_C/Pm` = `10`-`1`)
+
+portfolio_returns_CPm <- as.data.table(portfolio_returns_CPm)
+portfolio_returns_CPm[,t.test(`Ret_C/Pm`)]
+```
+
+#### 5.1.7 EBITDA/EV
+```{r}
+Univariate_Sort_Set_EE <- Univariate_Sort_Set[!is.na(`EBITDA/EV`)&!is.infinite(`EBITDA/EV`),c("Id","ym","MV.USD","RET.USD","EBITDA/EV")]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[`EBITDA/EV` > 0]
+
+setorder(Univariate_Sort_Set_EE,ym,-MV.USD) 
+
+Univariate_Sort_Set_EE <-  Univariate_Sort_Set_EE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_EE,ym,`EBITDA/EV`) 
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[, Decile := ntile(`EBITDA/EV`, 10), by = ym]
+Univariate_Sort_Set_EE <- Univariate_Sort_Set_EE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_EE <- Univariate_Sort_Set_EE %>% 
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_EBITDA/EV` = `10`-`1`)
+
+portfolio_returns_EE <- as.data.table(portfolio_returns_EE)
+portfolio_returns_EE[,t.test(`Ret_EBITDA/EV`)]
+```
+
+
+### 5.2 Size 
+#### 5.2.1 Log_MV
+```{r}
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set[!is.na(Log_MV)&!is.infinite(Log_MV),c("Id","ym","MV.USD","RET.USD","Log_MV")]
+
+
+setorder(Univariate_Sort_Set_lnMV,ym,Log_MV) 
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[, Decile := ntile(Log_MV, 10), by = ym]
+Univariate_Sort_Set_lnMV <- Univariate_Sort_Set_lnMV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_lnMV <- Univariate_Sort_Set_lnMV %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Log_MV` = `10`-`1`)
+
+portfolio_returns_lnMV <- as.data.table(portfolio_returns_lnMV)
+portfolio_returns_lnMV[,t.test(`Ret_Log_MV`)]
+```
+
+#### 5.2.2 MV
+```{r}
+Univariate_Sort_Set_MV <- Univariate_Sort_Set[!is.na(MV)&!is.infinite(MV),c("Id","ym","MV.USD","RET.USD","MV")]
+
+
+setorder(Univariate_Sort_Set_MV,ym,MV) 
+Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[, Decile := ntile(MV, 10), by = ym]
+Univariate_Sort_Set_MV <- Univariate_Sort_Set_MV[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_MV <- Univariate_Sort_Set_MV %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_MV` = `10`-`1`)
+
+portfolio_returns_MV <- as.data.table(portfolio_returns_MV)
+portfolio_returns_MV[,t.test(`Ret_MV`)]
+```
+
+
+### 5.3 Momentum
+#### 5.3.1 RSI
+```{r}
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set[!is.na(RSI)&!is.na(MV),c("Id","ym","MV.USD","RET.USD","RSI")]
+
+setorder(Univariate_Sort_Set_RSI,ym,-MV.USD) 
+
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_RSI,ym,RSI) 
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[, Decile := ntile(RSI, 10), by = ym]
+Univariate_Sort_Set_RSI <- Univariate_Sort_Set_RSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_RSI <- Univariate_Sort_Set_RSI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_RSI` = `10`-`1`)
+
+portfolio_returns_RSI <- as.data.table(portfolio_returns_RSI)
+portfolio_returns_RSI[,t.test(`Ret_RSI`)]
+```
+
+
+#### 5.3.2 Alpha_3
+```{r}
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set[!is.na(Alpha_3)&!is.na(MV)&!is.infinite(Alpha_3),c("Id","ym","MV.USD","RET.USD","Alpha_3")]
+
+setorder(Univariate_Sort_Set_alpha_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[size=="Big"]
+
+
+
+setorder(Univariate_Sort_Set_alpha_3,ym,Alpha_3) 
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[, Decile := ntile(Alpha_3, 10), by = ym]
+Univariate_Sort_Set_alpha_3 <- Univariate_Sort_Set_alpha_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_alpha_3 <- Univariate_Sort_Set_alpha_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Alpha_3` = `10`-`1`)
+
+portfolio_returns_alpha_3 <- as.data.table(portfolio_returns_alpha_3)
+portfolio_returns_alpha_3[,t.test(`Ret_Alpha_3`)]
+```
+
+
+#### 5.3.3 Momentum_12_2
+```{r}
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set[!is.na(MV.USD)&!is.infinite(Mom_12_2),c("Id","ym","MV.USD","RET.USD","Mom_12_2")]
+
+
+setorder(Univariate_Sort_Set_momentum,ym,-MV.USD) 
+
+Univariate_Sort_Set_momentum <-  Univariate_Sort_Set_momentum[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[size=="Big"]
+
+setorder(Univariate_Sort_Set_momentum,ym,Mom_12_2) 
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[, Decile := ntile(Mom_12_2, 10), by = ym]
+Univariate_Sort_Set_momentum <- Univariate_Sort_Set_momentum[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_momentum <- Univariate_Sort_Set_momentum %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>% 
+  mutate(`Ret_Mom_12_2` = `10`-`1`)
+
+portfolio_returns_momentum <- as.data.table(portfolio_returns_momentum)
+portfolio_returns_momentum[,t.test(`Ret_Mom_12_2`)]
+```
+
+### 5.4 Yield
+
+#### 5.4.1 DY
+```{r}
+Univariate_Sort_Set_yield <- Univariate_Sort_Set[!is.na(DY)&!is.infinite(DY),c("Id","ym","MV.USD","RET.USD","DY")]
+
+setorder(Univariate_Sort_Set_yield,ym,-MV.USD) 
+
+Univariate_Sort_Set_yield <-  Univariate_Sort_Set_yield[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_yield,ym,DY) 
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[, Decile := ntile(DY, 10), by = ym]
+Univariate_Sort_Set_yield <- Univariate_Sort_Set_yield[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_yield <- Univariate_Sort_Set_yield %>%
+  group_by(ym,Decile)%>% 
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_DY` = `10`-`1`)
+
+portfolio_returns_yield <- as.data.table(portfolio_returns_yield)
+portfolio_returns_yield[,t.test(`Ret_DY`)]
+```
+
+
+
+### 5.5 Quality
+#### 5.5.1 ROE
+```{r}
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set[!is.na(ROE)&!is.infinite(ROE),c("Id","ym","MV.USD","RET.USD","ROE")]
+
+setorder(Univariate_Sort_Set_ROE,ym,-MV.USD) 
+
+Univariate_Sort_Set_ROE <-  Univariate_Sort_Set_ROE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[size=="Big"]
+
+setorder(Univariate_Sort_Set_ROE,ym,ROE) 
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[, Decile := ntile(ROE, 10), by = ym]
+Univariate_Sort_Set_ROE <- Univariate_Sort_Set_ROE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_ROE <- Univariate_Sort_Set_ROE %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_ROE` = `10`-`1`)
+
+portfolio_returns_ROE <- as.data.table(portfolio_returns_ROE)
+portfolio_returns_ROE[,t.test(`Ret_ROE`)]
+```
+
+#### 5.5.2 ROA
+```{r}
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set[!is.na(ROA)&!is.infinite(ROA),c("Id","ym","MV.USD","RET.USD","ROA")]
+
+setorder(Univariate_Sort_Set_ROA,ym,-MV.USD) 
+
+Univariate_Sort_Set_ROA <-  Univariate_Sort_Set_ROA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_ROA,ym,ROA) 
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[, Decile := ntile(ROA, 10), by = ym]
+Univariate_Sort_Set_ROA <- Univariate_Sort_Set_ROA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+
+portfolio_returns_ROA <- Univariate_Sort_Set_ROA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_ROA` = `10`-`1`)
+
+
+portfolio_returns_ROA <- as.data.table(portfolio_returns_ROA)
+portfolio_returns_ROA[,t.test(`Ret_ROA`)]
+```
+
+#### 5.5.3 GP/A
+```{r}
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set[!is.na(`GP/A`)&!is.infinite(`GP/A`),c("Id","ym","MV.USD","RET.USD","GP/A")]
+
+setorder(Univariate_Sort_Set_GPA,ym,-MV.USD) 
+
+Univariate_Sort_Set_GPA <-  Univariate_Sort_Set_GPA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_GPA,ym,`GP/A`) 
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[, Decile := ntile(`GP/A`, 10), by = ym]
+Univariate_Sort_Set_GPA <- Univariate_Sort_Set_GPA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_GPA <- Univariate_Sort_Set_GPA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_GP/A` = `10`-`1`)
+
+portfolio_returns_GPA <- as.data.table(portfolio_returns_GPA)
+portfolio_returns_GPA[,t.test(`Ret_GP/A`)]
+```
+
+#### 5.5.4 OP/BE
+```{r}
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set[!is.na(`OP/BE`)&!is.infinite(`OP/BE`),c("Id","ym","MV.USD","RET.USD","OP/BE")]
+
+setorder(Univariate_Sort_Set_OPBE,ym,-MV.USD) 
+
+Univariate_Sort_Set_OPBE <-  Univariate_Sort_Set_OPBE[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[size=="Big"]
+
+
+
+setorder(Univariate_Sort_Set_OPBE,ym,`OP/BE`) 
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[, Decile := ntile(`OP/BE`, 10), by = ym]
+Univariate_Sort_Set_OPBE <- Univariate_Sort_Set_OPBE[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_OPBE <- Univariate_Sort_Set_OPBE %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_OP/BE` = `10`-`1`)
+
+portfolio_returns_OPBE <- as.data.table(portfolio_returns_OPBE)
+portfolio_returns_OPBE[,t.test(`Ret_OP/BE`)]
+```
+
+#### 5.5.5 NOA
+```{r}
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set[!is.na(NOA)&!is.infinite(`NOA`),c("Id","ym","MV.USD","RET.USD","NOA")]
+
+setorder(Univariate_Sort_Set_NOA,ym,-MV.USD) 
+
+Univariate_Sort_Set_NOA <-  Univariate_Sort_Set_NOA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[size=="Big"]
+
+
+
+setorder(Univariate_Sort_Set_NOA,ym,NOA) 
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[, Decile := ntile(NOA, 10), by = ym]
+Univariate_Sort_Set_NOA <- Univariate_Sort_Set_NOA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_NOA <- Univariate_Sort_Set_NOA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_NOA` = `10`-`1`)
+
+portfolio_returns_NOA <- as.data.table(portfolio_returns_NOA)
+portfolio_returns_NOA[,t.test(`Ret_NOA`)]
+```
+
+#### 5.5.6 OA
+```{r}
+Univariate_Sort_Set_OA <- Univariate_Sort_Set[!is.na(OA)&!is.infinite(OA),c("Id","ym","MV.USD","RET.USD","OA")]
+
+setorder(Univariate_Sort_Set_OA,ym,-MV.USD) 
+
+Univariate_Sort_Set_OA <-  Univariate_Sort_Set_OA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_OA,ym,OA) 
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[, Decile := ntile(OA, 10), by = ym]
+Univariate_Sort_Set_OA <- Univariate_Sort_Set_OA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_OA <- Univariate_Sort_Set_OA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_OA` = `10`-`1`)
+
+portfolio_returns_OA <- as.data.table(portfolio_returns_OA)
+portfolio_returns_OA[,t.test(`Ret_OA`)]
+```
+
+
+### 5.6 Low Volatility
+
+#### 5.6.1 Beta_3
+```{r}
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set[!is.na(Beta_3)&!is.infinite(Beta_3),c("Id","ym","MV.USD","RET.USD","Beta_3")]
+
+setorder(Univariate_Sort_Set_beta_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_beta_3 <-  Univariate_Sort_Set_beta_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_beta_3,ym,Beta_3) 
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[, Decile := ntile(Beta_3, 10), by = ym]
+Univariate_Sort_Set_beta_3 <- Univariate_Sort_Set_beta_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_beta_3 <- Univariate_Sort_Set_beta_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_Beta_3` = `10`-`1`)
+
+portfolio_returns_beta_3 <- as.data.table(portfolio_returns_beta_3)
+portfolio_returns_beta_3[,t.test(`Ret_Beta_3`)]
+```
+
+#### 5.6.2 Sigma_3
+```{r}
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set[!is.na(Sigma_3)&!is.infinite(Sigma_3),c("Id","ym","MV.USD","RET.USD","Sigma_3")]
+
+setorder(Univariate_Sort_Set_sigma_3,ym,-MV.USD) 
+
+Univariate_Sort_Set_sigma_3 <-  Univariate_Sort_Set_sigma_3[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[size=="Big"]
+
+
+
+setorder(Univariate_Sort_Set_sigma_3,ym,Sigma_3) 
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[, Decile := ntile(Sigma_3, 10), by = ym]
+Univariate_Sort_Set_sigma_3 <- Univariate_Sort_Set_sigma_3[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sigma_3 <- Univariate_Sort_Set_sigma_3 %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_Sigma_3` = `10`-`1`)
+
+portfolio_returns_sigma_3 <- as.data.table(portfolio_returns_sigma_3)
+portfolio_returns_sigma_3[,t.test(`Ret_Sigma_3`)]
+```
+
+
+
+#### 5.6.3 SD
+```{r}
+Univariate_Sort_Set_sd <- Univariate_Sort_Set[!is.na(SD)&!is.infinite(SD),c("Id","ym","MV.USD","RET.USD","SD")]
+
+setorder(Univariate_Sort_Set_sd,ym,-MV.USD) 
+
+Univariate_Sort_Set_sd <-  Univariate_Sort_Set_sd[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[size=="Big"]
+
+
+
+setorder(Univariate_Sort_Set_sd,ym,SD) 
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[, Decile := ntile(SD, 10), by = ym]
+Univariate_Sort_Set_sd <- Univariate_Sort_Set_sd[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sd <- Univariate_Sort_Set_sd %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_SD` = `10`-`1`)
+
+portfolio_returns_sd <- as.data.table(portfolio_returns_sd)
+portfolio_returns_sd[,t.test(`Ret_SD`)]
+```
+
+
+### 5.7 Liquidity
+#### 5.7.1 T/O
+```{r}
+
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set[!is.na(`T/O`),c("Id","ym","MV.USD","RET.USD","T/O")]
+#setorder(Univariate_Sort_Set_TO,ym,`T/O`)
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[, Decile := ntile(`T/O`, 10), by = ym]
+#Univariate_Sort_Set_TO <- Univariate_Sort_Set_TO[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+#portfolio_returns_TO <- Univariate_Sort_Set_TO %>%
+#  group_by(ym,Decile)%>%
+#  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>%
+#  spread(Decile,ret.port) %>%
+#  mutate(`Ret_T/O` = `10`-`1`)
+
+#portfolio_returns_TO <- as.data.table(portfolio_returns_TO)
+#portfolio_returns_TO[,t.test(`Ret_T/O`)]
+```
+
+### 5.8 Growth
+#### 5.8.1 EPS
+```{r}
+Univariate_Sort_Set_eps <- Univariate_Sort_Set[!is.na(EPS)&!is.infinite(EPS),c("Id","ym","MV.USD","RET.USD","EPS")]
+
+setorder(Univariate_Sort_Set_eps,ym,-MV.USD) 
+
+Univariate_Sort_Set_eps <-  Univariate_Sort_Set_eps[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_eps,ym,EPS) 
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[, Decile := ntile(EPS, 10), by = ym]
+Univariate_Sort_Set_eps <- Univariate_Sort_Set_eps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_eps <- Univariate_Sort_Set_eps %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_EPS` = `10`-`1`)
+
+portfolio_returns_eps <- as.data.table(portfolio_returns_eps)
+portfolio_returns_eps[,t.test(`Ret_EPS`)]
+```
+
+#### 5.8.2 SPS
+```{r}
+Univariate_Sort_Set_sps <- Univariate_Sort_Set[!is.na(SPS)&!is.infinite(SPS),c("Id","ym","MV.USD","RET.USD","SPS")]
+
+
+setorder(Univariate_Sort_Set_sps,ym,-MV.USD) 
+
+Univariate_Sort_Set_sps <-  Univariate_Sort_Set_sps[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_sps,ym,SPS) 
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[, Decile := ntile(SPS, 10), by = ym]
+Univariate_Sort_Set_sps <- Univariate_Sort_Set_sps[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_sps <- Univariate_Sort_Set_sps %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_SPS` = `10`-`1`)
+
+portfolio_returns_sps <- as.data.table(portfolio_returns_sps)
+portfolio_returns_sps[,t.test(`Ret_SPS`)]
+```
+
+### 5.9 Investment
+#### 5.9.1 AG
+```{r}
+Univariate_Sort_Set_inv <- Univariate_Sort_Set[!is.na(AG)&!is.infinite(AG),c("Id","ym","MV.USD","RET.USD","AG")]
+
+setorder(Univariate_Sort_Set_inv,ym,-MV.USD) 
+
+Univariate_Sort_Set_inv <-  Univariate_Sort_Set_inv[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[size=="Big"]
+
+setorder(Univariate_Sort_Set_inv,ym,AG) 
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[, Decile := ntile(AG, 10), by = ym]
+Univariate_Sort_Set_inv <- Univariate_Sort_Set_inv[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_inv <- Univariate_Sort_Set_inv %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_AG` = `10`-`1`)
+
+portfolio_returns_inv <- as.data.table(portfolio_returns_inv)
+portfolio_returns_inv[,t.test(`Ret_AG`)]
+```
+
+#### 5.9.2 NSI
+```{r}
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set[!is.na(NSI)&!is.infinite(NSI)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","NSI")]
+
+setorder(Univariate_Sort_Set_NSI,ym,-MV.USD) 
+
+Univariate_Sort_Set_NSI <-  Univariate_Sort_Set_NSI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[size=="Big"]
+
+setorder(Univariate_Sort_Set_NSI,ym,NSI) 
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[, Decile := ntile(NSI, 10), by = ym]
+Univariate_Sort_Set_NSI <- Univariate_Sort_Set_NSI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_NSI <- Univariate_Sort_Set_NSI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_NSI` = `10`-`1`)
+
+portfolio_returns_NSI <- as.data.table(portfolio_returns_NSI)
+portfolio_returns_NSI[,t.test(`Ret_NSI`)]
+```
+
+#### 5.9.3 CEI
+```{r}
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set[!is.na(CEI)&!is.infinite(CEI)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","CEI")]
+
+setorder(Univariate_Sort_Set_CEI,ym,-MV.USD) 
+
+Univariate_Sort_Set_CEI <-  Univariate_Sort_Set_CEI[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_CEI,ym,CEI) 
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[, Decile := ntile(CEI, 10), by = ym]
+Univariate_Sort_Set_CEI <- Univariate_Sort_Set_CEI[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_CEI <- Univariate_Sort_Set_CEI %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_CEI` = `10`-`1`)
+
+portfolio_returns_CEI <- as.data.table(portfolio_returns_CEI)
+portfolio_returns_CEI[,t.test(`Ret_CEI`)]
+```
+
+#### 5.9.4 I/A
+```{r}
+Univariate_Sort_Set_IA <- Univariate_Sort_Set[!is.na(`I/A`)&!is.infinite(`I/A`)&!is.na(MV.USD),c("Id","ym","MV.USD","RET.USD","I/A")]
+
+setorder(Univariate_Sort_Set_IA,ym,-MV.USD) 
+
+Univariate_Sort_Set_IA <-  Univariate_Sort_Set_IA[, size := ifelse((cumsum(MV.USD)/sum(MV.USD))>=0.9,"Small","Big"),by=ym]
+
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[size=="Big"]
+
+
+setorder(Univariate_Sort_Set_IA,ym,`I/A`) 
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[, Decile := ntile(`I/A`, 10), by = ym]
+Univariate_Sort_Set_IA <- Univariate_Sort_Set_IA[!is.na(MV.USD) & !is.na(RET.USD) & Decile %in% c(1,10)]
+
+portfolio_returns_IA <- Univariate_Sort_Set_IA %>%
+  group_by(ym,Decile)%>%
+  summarize(ret.port = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  spread(Decile,ret.port) %>%
+  mutate(`Ret_I/A` = `10`-`1`)
+
+portfolio_returns_IA <- as.data.table(portfolio_returns_IA)
+portfolio_returns_IA[,t.test(`Ret_I/A`)]
+```
+## 6. Fama-Macbeth Regession
+
+### 6.1 Select Big Stock and All-But-Micro Stock
+```{r}
+ALL_FACTORS = c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Log_MV", "Mom_12_2", "Alpha_3", "RSI")
+
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+stock_NoMicro <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_NoMicro <- stock_NoMicro[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_NoMicro <- merge(stock_NoMicro, Univariate_Sort_Set)
+```
+
+### 6.2 Function Definition
+```{r}
+results_lm <- function(data, x, y="ExRET.USD") {
+  fm <- as.formula(paste(y, "~", paste(paste0("`", x, "`"), collapse = "+")))
+  lm(fm, data = data)$coefficient
+}
+
+fm_reg <- function(data, x, y="ExRET.USD", group=c("ym")) {
+  cols <- c(group, y, x)
+  result <- data %>%
+    dplyr::select(all_of(cols)) %>%
+    drop_na() %>%
+    filter_all(all_vars(!is.infinite(.))) %>%
+    group_by(across(all_of(group))) %>%
+    reframe(
+      coef=rbind(results_lm(pick(everything()), x))
+    ) %>%
+    ungroup()
+  result <- as.data.table(result)
+}
+
+fm <- function(data, factor, y="ExRET.USD", group=c("ym"), reg_coef=FALSE) {
+  reg_result <- fm_reg(data, factor, y, group)
+  reg_result_only_value <- reg_result %>% dplyr::select(-all_of(group))
+  test_result <- sapply(reg_result_only_value, t.test)
+  test_result <- test_result[c("estimate", "p.value"), -1]
+  colnames(test_result) <- factor
+  if (reg_coef) {
+    names_coef <- c(group, "intercept", paste0("coef.", factor))
+    colnames(reg_result) <- names_coef
+    result <- list("test" = test_result, "reg" = reg_result)
+    return(result)
+  } else {
+    return(test_result)
+  }
+}
+```
+
+
+### 6.3 Regression Using Big and Small Stocks (Excl. Micro)
+
+```{r}
+panel_a <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
+panel_a
+```
+
+```{r}
+panel_b <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV"))
+panel_b
+```
+
+```{r}
+panel_c <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_c
+```
+
+```{r}
+panel_d1 <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/M", "B/Mm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d1
+```
+
+```{r}
+panel_d2 <- fm(Univariate_Sort_Set_NoMicro, c("Beta_3", "Sigma_3", "SD", "B/Mm", "E/Pm", "C/Pm", "OP/BE", "AG", "MV", "Mom_12_2"))
+panel_d2
+```
+
+```{r}
+panel_e <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "MV", "Mom_12_2"))
+panel_e
+```
+
+```{r}
+panel_f <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "AG", "CEI", "MV", "Mom_12_2"))
+panel_f
+```
+
+```{r}
+panel_g <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "OP/BE", "NOA", "ROE", "CEI", "MV", "Log_MV", "Mom_12_2"))
+panel_g
+```
+
+```{r}
+panel_h <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "SD", "B/Mm", "NOA", "ROE", "CEI", "Log_MV", "Mom_12_2", "Alpha_3", "RSI"))
+panel_h
+```
+
+```{r}
+panel_i <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_i
+```
+
+```{r}
+result_final <- fm(Univariate_Sort_Set_NoMicro, c("Sigma_3", "B/Mm", "CEI", "Log_MV", "Alpha_3", "RSI"), reg_coef = TRUE)
+panel_j <- result_final$test
+coef_cross_sectional <- result_final$reg
+panel_j
+```
+
+
+### 6.4 Regression Using Big Stocks
+
+
+```{r}
+panel_k1 <- fm(Univariate_Sort_Set_big, c("Beta_3", "B/M", "OP/BE", "AG", "MV"))
+panel_k1
+```
+
+```{r}
+panel_k2 <- fm(Univariate_Sort_Set_big, c("Sigma_3", "B/Mm", "NOA", "CEI", "Log_MV", "Alpha_3", "RSI"))
+panel_k2
+```
+
+Consider the result of Univariate sort and Fama-Macbeth regression, we propose a 6-factor model, including: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI.
+
+Consider the result of double sort, univariate sort, and Fama-Macbeth regression, we propose a 3-factor model, including: Log_MV, Alpha_3, RSI.
+
+## 7. Lewellen's Method (calculating coefficient)
+
+```{r}
+load("../../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+### 7.1 Selected Factors: Sigma_3, B/Mm, CEI, Log_MV, Alpha_3, RSI
+```{r}
+coef_cross_sectional_6 <- Univariate_Sort_Set_big_small[!is.na(Sigma_3) & !is.infinite(Sigma_3) & !is.na(`B/Mm`) & !is.infinite(`B/Mm`) & !is.na(CEI) & !is.infinite(CEI) & !is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(intercept=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.sigma3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.bmm=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.cei=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[4],
+                                              gamma.logmv=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[5],
+                                              gamma.alpha3=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[6],
+                                              gamma.rsi=lm(ExRET.USD~Sigma_3+`B/Mm`+CEI+Log_MV+Alpha_3+RSI)$coefficient[7])
+                              ,by=ym]
+```
+
+```{r}
+#Rolling Mean and Cumulative Mean
+cols_6 <- colnames(coef_cross_sectional_6[, -1])
+setorder(coef_cross_sectional_6, ym)
+data_lewellen_6 <- cbind(coef_cross_sectional_6, mean36 = rollmeanr(coef_cross_sectional_6[, ..cols_6], 36, fill = NA))
+data_lewellen_6 <- cbind(data_lewellen_6, cummean = cumsum(coef_cross_sectional_6[, ..cols_6]) / seq_along(data_lewellen_6[, ym]))
+```
+
+### 7.2 Selected Factors: Log_MV, Alpha_3, RSI
+
+```{r}
+coef_cross_sectional_3 <- Univariate_Sort_Set_big_small[!is.na(Log_MV) & !is.infinite(Log_MV) & !is.na(Alpha_3) & !is.infinite(Alpha_3) & !is.na(RSI) & !is.infinite(RSI),
+                                            .(intercept=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[1],
+                                              gamma.logmv=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[2],
+                                              gamma.alpha3=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[3],
+                                              gamma.rsi=lm(ExRET.USD~Log_MV+Alpha_3+RSI)$coefficient[4])
+                              ,by=ym]
+```
+
+###Rolling Mean and Cumulative Mean
+
+```{r}
+cols_3 <- colnames(coef_cross_sectional_3[, -1])
+ setorder(coef_cross_sectional_3, ym)
+ data_lewellen_3 <- cbind(coef_cross_sectional_3, mean36 = rollmeanr(coef_cross_sectional_3[, ..cols_3], 36, fill = NA))
+ data_lewellen_3 <- cbind(data_lewellen_3, cummean = cumsum(coef_cross_sectional_3[, ..cols_3]) / seq_along(data_lewellen_3[, ym]))
+```
+
+
+## 8. Lewellen's Method (6 factor)
+Selected Factors: Sigma_3, B/Mm, NOA, CEI, Log_MV, Alpha_3, RSI
+
+```{r}
+load("../../Data/Data_Lewellen_6.RData")
+data_lewellen_6 <- as.data.table(data_lewellen_6)
+load("../../Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big_small <- stock_size[!is.na(MV.USD), .(big_small = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.97), 0, 1), Id), by=ym]
+stock_big_small <- stock_big_small[big_small==1, c("Id", "ym")]
+Univariate_Sort_Set_big_small <- merge(stock_big_small, Univariate_Sort_Set)
+```
+
+```{r}
+# merge with firm characteristics
+data_set <- Univariate_Sort_Set_big_small %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Sigma_3, `B/Mm`, CEI, Log_MV, Alpha_3, RSI)
+
+lewellen_data_set <- merge(x=data_set, y=data_lewellen_6, by.x = c("ym"), by.y = c("ym"), all= 1)
+
+
+# Creating the lag variable of mean36 average slope
+lewellen_data_set[, Lag_mean36_Intercept := shift(mean36.intercept, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_Sigma3 := shift(mean36.gamma.sigma3, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_BMm := shift(mean36.gamma.bmm, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_CEI := shift(mean36.gamma.cei, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_Log_MV := shift(mean36.gamma.logmv, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_Alpha3 := shift(mean36.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set[, Lag_mean36_RSI := shift(mean36.gamma.rsi, n= 1), by = Id]
+
+# Creating the lag variable of cumulated average slope
+lewellen_data_set[, Lag_cum_Intercept := shift(cummean.intercept, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_Sigma3 := shift(cummean.gamma.sigma3, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_BMm := shift(cummean.gamma.bmm, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_CEI := shift(cummean.gamma.cei, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_Log_MV := shift(cummean.gamma.logmv, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_Alpha3 := shift(cummean.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set[, Lag_cum_RSI := shift(cummean.gamma.rsi, n= 1), by = Id]
+```
+
+```{r}
+# Creating the lag variable of firm chara geristics
+
+lewellen_data_set[, Lag_Sigma3 := shift(Sigma_3, n= 1), by = Id]
+lewellen_data_set[, Lag_BMm := shift(`B/Mm`, n= 1), by = Id]
+lewellen_data_set[, Lag_CEI := shift(CEI, n= 1), by = Id]
+lewellen_data_set[, Lag_Log_MV := shift(Log_MV, n= 1), by = Id]
+lewellen_data_set[, Lag_Alpha3 := shift(Alpha_3, n= 1), by = Id]
+lewellen_data_set[, Lag_RSI := shift(RSI, n= 1), by = Id]
+
+lewellen_data_set[, Lag_intercept := shift(intercept, n= 1), by = Id]
+```
+
+
+
+```{r}
+lewellen_expected_return_mean36 <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = Lag_mean36_Intercept + Lag_mean36_Sigma3 * Lag_Sigma3 + Lag_mean36_BMm * Lag_BMm + Lag_mean36_CEI * Lag_CEI + Lag_mean36_Log_MV * Lag_Log_MV + Lag_mean36_Alpha3 * Lag_Alpha3 + Lag_mean36_RSI * Lag_RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean <- lewellen_data_set %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = Lag_cum_Intercept + Lag_cum_Sigma3 * Lag_Sigma3 + Lag_cum_BMm * Lag_BMm + Lag_cum_CEI * Lag_CEI + Lag_cum_Log_MV * Lag_Log_MV + Lag_cum_Alpha3 * Lag_Alpha3 + Lag_cum_RSI * Lag_RSI) %>% 
+    ungroup
+```
+
+Select Top 20 stocks (6 factor)
+
+```{r}
+stock_20_6_mean36 <- lewellen_expected_return_mean36 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  slice(1:20) %>%
+    ungroup
+
+stock_20_6_cum <- lewellen_expected_return_cummean %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  slice(1:20) %>% 
+  ungroup
+
+stock_20_6_mean36 <- stock_20_6_mean36 %>% 
+  dplyr::select(Id, ym)
+
+stock_20_6_cum <- stock_20_6_cum %>% 
+  dplyr::select(Id, ym)
+```
+
+
+
+## 9. Lewellen's Method (3 factor)
+
+```{r}
+load("../../Data/Data_Lewellen_3.RData")
+data_lewellen_3 <- as.data.table(data_lewellen_3)
+```
+
+```{r}
+# merge with firm characteristics
+data_set_3 <- Univariate_Sort_Set_big_small %>% 
+  dplyr::select(Id, ym, MV.USD, RET.USD, MRP.USD, ExRET.USD, Log_MV, Alpha_3, RSI)
+
+lewellen_data_set_3 <- merge(x=data_set_3, y=data_lewellen_3, by.x = c("ym"), by.y = c("ym"), all= 1)
+
+
+# Creating the lag variable of mean36 average slope
+lewellen_data_set_3[, Lag_mean36_Intercept := shift(mean36.intercept, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_Log_MV := shift(mean36.gamma.logmv, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_Alpha3 := shift(mean36.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_mean36_RSI := shift(mean36.gamma.rsi, n= 1), by = Id]
+
+# Creating the lag variable of cumulated average slope
+lewellen_data_set_3[, Lag_cum_Intercept := shift(cummean.intercept, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_Log_MV := shift(cummean.gamma.logmv, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_Alpha3 := shift(cummean.gamma.alpha3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_cum_RSI := shift(cummean.gamma.rsi, n= 1), by = Id]
+```
+
+```{r}
+# Creating the lag variable of firm characteristics
+lewellen_data_set_3[, Lag_Log_MV := shift(Log_MV, n= 1), by = Id]
+lewellen_data_set_3[, Lag_Alpha3 := shift(Alpha_3, n= 1), by = Id]
+lewellen_data_set_3[, Lag_RSI := shift(RSI, n= 1), by = Id]
+
+lewellen_data_set_3[, Lag_intercept := shift(intercept, n= 1), by = Id]
+```
+
+```{r}
+lewellen_expected_return_mean36_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_36 = Lag_mean36_Intercept +  Lag_mean36_Log_MV * Lag_Log_MV + Lag_mean36_Alpha3 * Lag_Alpha3 + Lag_mean36_RSI * Lag_RSI) %>% 
+    ungroup
+
+lewellen_expected_return_cummean_3 <- lewellen_data_set_3 %>% 
+  group_by(ym, Id) %>% 
+  mutate(Expected_Return_cummean = Lag_cum_Intercept + Lag_cum_Log_MV * Lag_Log_MV + Lag_cum_Alpha3 * Lag_Alpha3 + Lag_cum_RSI * Lag_RSI) %>% 
+    ungroup
+```
+
+Select Top 20 stocks (3 factor)
+```{r}
+stock_20_3_mean36 <- lewellen_expected_return_mean36_3 %>%
+  filter(!is.na(Expected_Return_36) &!is.infinite(Expected_Return_36)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_36)) %>% 
+  slice(1:20) %>% 
+    ungroup
+
+stock_20_3_cum <- lewellen_expected_return_cummean_3 %>%
+    filter(!is.na(Expected_Return_cummean) &!is.infinite(Expected_Return_cummean)) %>% 
+  group_by(ym) %>% 
+  arrange(desc(Expected_Return_cummean)) %>% 
+  slice(1:20) %>% 
+  ungroup
+
+stock_20_3_mean36 <- stock_20_3_mean36 %>% 
+  dplyr::select(Id, ym)
+
+stock_20_3_cum <-stock_20_3_cum %>% 
+  dplyr::select(Id, ym)
+```
+
+
+
+
+
+
+## 10. Vector Autoregressive (VAR)
+
+
+```{r}
+
+load("~/Desktop/Empirical Asset Pricing/Repo/Univariate_Sort_Set.RData")
+
+
+# B/Mm contains many NA value and will make the time series discontinuous, so we ignore this variable
+# Remove the first 36 months for each stock because Alpha_3 is NA, 
+VAR_5_Set <- Univariate_Sort_Set[!is.na(Alpha_3),c("Id","ym","RET.USD","Sigma_3", "CEI", "Log_MV", "Alpha_3", "RSI")]
+VAR_3_Set <- Univariate_Sort_Set[!is.na(Alpha_3),c("Id","ym","RET.USD","Log_MV","Alpha_3","RSI")]
+
+
+# Check if there is missing value and have many stocks have missing
+VAR_3_Set[,check_NA_using_sum:=RET.USD+Log_MV+Alpha_3+RSI]
+length(unique(VAR_3_Set[is.na(check_NA_using_sum),]$Id))
+VAR_3_Set[,check_NA_using_sum:=NULL]
+VAR_5_Set[,check_NA_using_sum:=RET.USD+Sigma_3+CEI+Log_MV+Alpha_3+RSI]
+length(unique(VAR_5_Set[is.na(check_NA_using_sum),]$Id))
+VAR_5_Set[,check_NA_using_sum:=NULL]
+
+# filter out stocks that have a history less than 36 months
+Stock_list_long_history <- as.list(VAR_3_Set[,.N, by=Id][N>36]$Id)
+VAR_3_Set <- VAR_3_Set[Id %in% Stock_list_long_history]
+VAR_5_Set <- VAR_5_Set[Id %in% Stock_list_long_history]
+Stock_list <- as.list(unique(VAR_3_Set$Id))
+
+Stock_list_3 <- Stock_list[3]
+
+Stock_list_10 <- Stock_list[480:490]
+
+# Replace -Inf in log_MV as the minimum number -4.60517
+VAR_3_Set[is.infinite(Log_MV), Log_MV := -4.60517]
+VAR_5_Set[is.infinite(Log_MV), Log_MV := -4.60517]
+
+# Replace -Inf in CEI as the minimum number -4.60517
+VAR_5_Set[is.infinite(CEI)&CEI>0, CEI := 8.537883]
+VAR_5_Set[is.infinite(CEI)&CEI<0, CEI := -33.5675]
+
+
+# Replace Inf in CEI as the minimum number -4.60517
+
+# 3 factor cumulative var
+VAR_3_Func <- function(stocks){
+  
+  VAR_3_Set_RETfcst <- data.table(
+    Id = character(),
+    ym = character(),
+    RET.USD = integer(),
+    Log_MV = integer(),
+    Alpha_3 = integer(),
+    RSI = integer(),
+    RET_VARfcst = integer()
+  )
+  j=0
+  
+  for (stock in c(Stock_list)){
+    n=0
+    n_pred_period <- nrow(VAR_3_Set[Id==stock,])-36
+    Single_Stock_Set <- VAR_3_Set[Id==stock,]
+    RET_list <- rep(0,36)
+
+    for (n in 1:n_pred_period){
+      Single_Stock_training_Set <- Single_Stock_Set[1:36+n]
+      Single_Stock_Training_Set <- Single_Stock_training_Set %>% mutate(Id=NULL) %>% mutate(ym=NULL)
+      lag_order <- VARselect(Single_Stock_Training_Set, lag.max = 10, type = "both")$selection[1]
+      VARModel <- VAR(Single_Stock_Training_Set, p = lag_order, type = "const", season = NULL, exog = NULL) 
+      forecast <- predict(VARModel, n.ahead = 1, ci = 0.95)
+      RET_VARfcst <- forecast$fcst$RET.USD
+      RET_OnePeriod <- as.numeric(RET_VARfcst[1])
+      RET_list <- c(RET_list,RET_OnePeriod)
+    }
+    Single_Stock_Set$RET_VARfcst <- RET_list
+    VAR_3_Set_RETfcst <- rbind(VAR_3_Set_RETfcst,Single_Stock_Set)
+    print(j)
+    j <- j+1
+  }
+  
+  return(VAR_3_Set_RETfcst)
+}
+
+VAR_3_Set_RETfcst <- VAR_3_Func(Stock_list)
+
+VAR_3_Set_RETfcst_copy <- VAR_3_Set_RETfcst
+
+monthly_3_var_20 <- VAR_3_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  slice_max(order_by = RET_VARfcst, n=20) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_3_var_20 <- monthly_3_var_20
+
+monthly_3_var_10 <- VAR_3_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  top_frac(0.1, wt = RET_VARfcst) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_3_var_10 <- monthly_3_var_10
+
+
+
+save(monthly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_3_var_20.RData")
+save(quarterly_3_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_3_var_20.RData")
+save(monthly_3_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_3_var_10.RData")
+save(quarterly_3_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_3_var_10.RData")
+
+
+# 5 factor cumulative var
+VAR_5_Func <- function(stocks){
+  
+  VAR_5_Set_RETfcst <- data.table(
+    Id = character(),
+    ym = character(),
+    RET.USD = integer(),
+    Sigma_3 = integer(),
+    CEI = integer(),
+    Log_MV = integer(),
+    Alpha_3 = integer(),
+    RSI = integer(),
+    RET_VARfcst = integer()
+  )
+  j=0
+  
+  for (stock in c(stocks)){
+    n=0
+    n_pred_period <- nrow(VAR_5_Set[Id==stock,])-36
+    Single_Stock_Set <- VAR_5_Set[Id==stock,]
+    RET_list <- rep(NA,36)
+    
+    for (n in 1:n_pred_period){
+      
+      Single_Stock_training_Set <- Single_Stock_Set[1:36+n]
+      Single_Stock_Training_Set <- Single_Stock_training_Set %>% mutate(Id=NULL) %>% mutate(ym=NULL)
+      lag_order <- VARselect(Single_Stock_Training_Set, lag.max = 3, type = "both")$selection[1]
+      VARModel <- VAR(Single_Stock_Training_Set, p = 2, type = "const", season = NULL, exog = NULL) 
+      forecast <- predict(VARModel, n.ahead = 1, ci = 0.95)
+      RET_VARfcst <- forecast$fcst$RET.USD
+      RET_OnePeriod <- as.numeric(RET_VARfcst[1])
+      RET_list <- c(RET_list,RET_OnePeriod)
+    }
+    Single_Stock_Set$RET_VARfcst <- RET_list
+    VAR_5_Set_RETfcst <- rbind(VAR_5_Set_RETfcst,Single_Stock_Set)
+    print(j)
+    j <- j+1
+  }
+  
+  return(VAR_5_Set_RETfcst)
+}
+
+VAR_5_Set_RETfcst <- VAR_5_Func(Stock_list)
+
+VAR_5_Set_RETfcst_copy <- VAR_5_Set_RETfcst
+
+
+monthly_5_var_20 <- VAR_5_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  slice_max(order_by = RET_VARfcst, n=20) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_5_var_20 <- monthly_5_var_20
+
+monthly_5_var_10 <- VAR_5_Set_RETfcst %>% 
+  group_by(Id) %>% 
+  slice(-(1:36)) %>% 
+  ungroup() %>% 
+  dplyr::select(Id, ym, RET.USD, RET_VARfcst) %>% 
+  group_by(ym) %>% 
+  top_frac(0.1, wt = RET_VARfcst) %>% 
+  dplyr::select(Id, ym)
+
+
+quarterly_5_var_10 <- monthly_5_var_10
+
+
+
+save(monthly_5_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_5_var_20.RData")
+save(quarterly_5_var_20,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_5_var_20.RData")
+save(monthly_5_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/monthly_5_var_10.RData")
+save(quarterly_5_var_10,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Data//Stock_List/quarterly_5_var_10.RData")
+
+```
+
+
+
+
+## 11. Tangent_Portfolio
+```{r}
+# install.packages("quadprog", repos="http://cran.rstudio.com")
+# install.packages("xts", repos="http://cloud.r-project.org")
+# install.packages("IntroCompFinR", repos="http://R-Forge.R-project.org")
+library(zoo)
+library(quadprog)
+library(IntroCompFinR)
+library(tidyr)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(data.table)
+```
+
+```{r}
+## convert the date type of ym to "Date" in the original dataset
+ load("../Original_Dataset/GBR_DS_monthly.RData")
+# load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_3_var_20.RData")
+# load("~/Desktop/Empirical Asset Pricing/Repo/Data/Stock_List/quarterly_5_var_20.RData")
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+DS.monthly$RET.USD <- DS.monthly$RET.USD/100
+
+#DS.monthly <- DS.monthly[!is.na(RET.USD)]
+
+```
+
+
+### 11.1 quarterly_3_mean_20
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_3_mean36
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+
+ if(any(is.na(selected_past_data_df))){
+   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+   top_20_stock_id<- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+#Remove the selected_past_data_df dataframe from the environment to free up memory.
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+
+#weights_df <- as.data.table(weights_df)
+
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+   if(any(is.na(selected_past_data_df))){
+     missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+     top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+   
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+    
+  }
+  rm(cov_mat_month)
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_3_mean_20 <-  weights_df_final
+#save(weighted_result_quarterly_3_mean_20,file = "./Weighted_Result/weighted_result_quarterly_3_mean_20.Rdata")
+
+re_sd_result_quarterly_3_mean_20 <-  er_sd_df_final
+#save(re_sd_result_quarterly_3_mean_20,file = "./Weighted_Result/re_sd_result_quarterly_3_mean_20.Rdata")
+
+```
+
+### 11.2 quarterly_6_mean_20
+
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_6_mean36
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  #month(date) <- month(date)+1
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+ if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+    
+  }
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_6_mean_20 <-  weights_df_final
+#save(weighted_result_quarterly_6_mean_20,file = "./Weighted_Result/weighted_result_quarterly_6_mean_20.Rdata")
+
+re_sd_result_quarterly_6_mean_20 <-  er_sd_df_final
+#save(re_sd_result_quarterly_6_mean_20,file = "./Weighted_Result/re_sd_result_quarterly_6_mean_20.Rdata")
+```
+
+### 11.3 quarterly_3_cum_20
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_3_cum
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+
+ if(any(is.na(selected_past_data_df))){
+   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+   top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+
+#weights_df <- as.data.table(weights_df)
+
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+#Check if there are any missing values (NA) in the 'RET.USD' column of selected_past_data_df. If there are missing values, create a list of stock IDs with missing data and remove those stocks from the top_20_stock_id list.
+  
+   if(any(is.na(selected_past_data_df))){
+     missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+     top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+   
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+
+  rm(cov_mat_month)
+
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+    
+  }
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_3_cum_20 <-  weights_df_final
+#save(weighted_result_quarterly_3_cum_20,file = "./Weighted_Result/weighted_result_quarterly_3_cum_20.Rdata")
+
+re_sd_result_quarterly_3_cum_20 <-  er_sd_df_final
+#save(re_sd_result_quarterly_3_cum_20,file = "./Weighted_Result/re_sd_result_quarterly_3_cum_20.Rdata")
+```
+
+### 11.4 quarterly_6_cum_20
+
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_6_cum
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  #month(date) <- month(date)+1
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+ # if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+#}
+
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+    
+  }
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_6_cum_20 <-  weights_df_final
+#save(weighted_result_quarterly_6_cum_20,file = "./Weighted_Result/weighted_result_quarterly_6_cum_20.Rdata")
+
+re_sd_result_quarterly_6_cum_20 <-  er_sd_df_final
+#save(re_sd_result_quarterly_6_cum_20,file = "./Weighted_Result/re_sd_result_quarterly_6_cum_20.Rdata")
+```
+
+
+### 11.5 quarterly_3_var_20
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- quarterly_3_var_20
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+
+ if(any(is.na(selected_past_data_df))){
+   missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+   top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+weights_df <- as.data.table(weights_df)
+
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+if(any(is.na(selected_past_data_df))){
+    missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+     top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+ }
+   selected_past_data_df <- selected_past_data_df[Id %in% top_20_stock_id,]
+   
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+
+   colnames(weights_df) = top_20_stock_id
+   rownames(weights_df) = date
+  
+  weights_df <- as.data.table(weights_df)
+  rm(cov_mat_month)
+  
+  
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+
+  }
+}
+
+```
+
+```{r}
+#save result
+weighted_result_quarterly_3_var_20 <-  weights_df_final
+save(weighted_result_quarterly_3_var_20,file = "./Weighted_Result/weighted_result_quarterly_3_var_20.Rdata")
+
+re_sd_result_quarterly_3_var_20 <-  er_sd_df_final
+save(re_sd_result_quarterly_3_var_20,file = "./Weighted_Result/re_sd_result_quarterly_3_var_20.Rdata")
+
+```
+
+
+### 11.6 quarterly_5_var_20
+
+```{r}
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- quarterly_5_var_20
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_three_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  #month(date) <- month(date)+1
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+```
+
+```{r}
+# set risk_free rate and all stocks
+risk_free_rate <- 0
+stock_ids <- unique(current_data_df$Id)
+```
+
+
+
+```{r}
+## construct the first weighting
+#get quarterly data
+dates <- subset(unique(current_data_df$ym),c(TRUE,FALSE,FALSE))
+
+## construct the first weighting
+top_20_stock_id = current_data_df[which(current_data_df$ym == dates[1]),]$Id
+
+selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(dates[1])),c('Id','ym','RET.USD')]
+
+if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+}
+
+
+selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+
+
+#change to time-series data type
+seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+rm(selected_past_data_df)
+
+
+#use past 24months return to construct the expected return and covariance
+mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+
+
+cov_mat_month <- cov(seri_selected_past_data_df)
+rm(seri_selected_past_data_df)
+
+
+tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+
+weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+rm(cov_mat_month)
+colnames(weights_df) = top_20_stock_id
+rownames(weights_df) = dates[1]
+
+weights_df_final = weights_df
+
+er_sd_df_final = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+rownames(er_sd_df_final) = dates[1]
+```
+
+
+```{r}
+## construct the rest of time period
+for (date in dates[2:length(dates)]){
+  date = as.Date(date)
+  top_20_stock_id = current_data_df[which(current_data_df$ym == date),]$Id
+  selected_past_data_df = DS.monthly[which(DS.monthly$Id %in% top_20_stock_id & DS.monthly$ym %in% get_previous_three_year(date)),c('Id','ym','RET.USD')]
+  
+ # if(any(is.na(selected_past_data_df))){
+  missing_stock_list <- as.list(selected_past_data_df[is.na(RET.USD),]$Id)
+  top_20_stock_id <- top_20_stock_id[!(top_20_stock_id %in% missing_stock_list)]
+#}
+
+  selected_past_data_df <- pivot_wider(selected_past_data_df,names_from = Id, values_from = RET.USD)
+  seri_selected_past_data_df <- selected_past_data_df[,top_20_stock_id]
+  rownames(seri_selected_past_data_df) <- selected_past_data_df$ym
+  rm(selected_past_data_df)
+  mu_hat_month <- apply(seri_selected_past_data_df,2,mean)
+  
+  #use excess return to calculate the covariance
+  seri_selected_past_data_df_excess_return <- set(seri_selected_past_data_df, j =     names(seri_selected_past_data_df), value = lapply(seri_selected_past_data_df, function(x) x-mean(x)))
+
+  cov_mat_month <- cov(seri_selected_past_data_df_excess_return)
+  rm(seri_selected_past_data_df)
+  rm(seri_selected_past_data_df_excess_return)
+    
+  global_minimum_variance_portfolio  <- globalMin.portfolio(mu_hat_month,cov_mat_month,short = FALSE)
+  
+  if(global_minimum_variance_portfolio$er > risk_free_rate){
+    tangency_portfolio_no_short <- tangency.portfolio(mu_hat_month,cov_mat_month,risk.free = risk_free_rate, shorts = FALSE)
+  
+  weights_df = data.frame(as.list(tangency_portfolio_no_short$weights))
+  colnames(weights_df) = top_20_stock_id
+  rownames(weights_df) = date
+  weights_df_final = dplyr::bind_rows(weights_df_final,weights_df)
+  
+  er_sd_df = data.frame(er=tangency_portfolio_no_short$er,sd=tangency_portfolio_no_short$sd)
+  rownames(er_sd_df) = date
+  er_sd_df_final = dplyr::bind_rows(er_sd_df_final,er_sd_df)
+  
+  }
+  else{
+    print(date)
+    print("- negative perfomance.")
+  
+  }
+}
+
+```
+
+
+
+
+
+## 12. Performance
+### 12.1 Change the data format
+#### weighted_result_quarterly_6_mean_20
+```{r}
+weighted_result_quarterly_6_mean_20_complete <- weighted_result_quarterly_6_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_3_mean_20
+```{r}
+weighted_result_quarterly_3_mean_20_complete <- weighted_result_quarterly_3_mean_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_6_cum_20
+```{r}
+weighted_result_quarterly_6_cum_20_complete <- weighted_result_quarterly_6_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_6_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+
+#### weighted_result_quarterly_3_cum_20
+```{r}
+weighted_result_quarterly_3_cum_20_complete <- weighted_result_quarterly_3_cum_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_cum_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_3_var_20
+```{r}
+
+weighted_result_quarterly_3_var_20_complete <- weighted_result_quarterly_3_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_3_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+#### weighted_result_quarterly_5_var_20
+```{r}
+
+weighted_result_quarterly_5_var_20_complete <- weighted_result_quarterly_5_var_20 %>%
+  mutate(ym=rownames(weighted_result_quarterly_5_var_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  dplyr::select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+### 12.2 Performance, Turnover, Effective_N
+```{r}
+load("../Original_Dataset/GBR_DS_monthly.RData")
+DS.monthly$ym <- as.Date(DS.monthly$ym)
+```
+
+#### quarterly_6_mean_20
+```{r}
+
+t5 <- weighted_result_quarterly_6_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+# Average number of stock
+num_6_mean <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_6_mean$n))
+
+hist(num_6_mean$n)
+
+ggplot(num_6_mean, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")+
+  theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+print(mean(quarterly_6_mean_performance$RET))
+print(sd(quarterly_6_mean_performance$RET))
+print(mean(quarterly_6_mean_performance$RET)/sd(quarterly_6_mean_performance$RET))
+
+# annualized return
+a <- mean(quarterly_6_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+# Annualized
+#converted to time series data
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_mean_performance$ym)
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+annual_tseri_quarterly_6_mean_performance <- Return.annualized(tseri_quarterly_6_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_mean_performance
+
+StdDev.annualized(tseri_quarterly_6_mean_performance)
+
+# Turnover
+Turnover_6_mean <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_6_mean <- Turnover_6_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_mean$sigma))
+print(n_distinct(Turnover_6_mean$ym))
+print(sum(Turnover_6_mean$sigma)/n_distinct(Turnover_6_mean$ym)*0.5)
+
+
+# Effective N 
+Effective_N_6_mean <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_6_mean$sigma_i)/n_distinct(Effective_N_6_mean$ym))
+
+```
+
+#### quarterly_6_cum_20
+```{r}
+t5 <- weighted_result_quarterly_6_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_6_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+# Average number of stock
+num_6_cum <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_6_cum$n))
+
+ggplot(num_6_cum, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")+
+  theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+print(mean(quarterly_6_cum_performance$RET))
+print(sd(quarterly_6_cum_performance$RET))
+print(mean(quarterly_6_cum_performance$RET)/sd(quarterly_6_cum_performance$RET))
+
+# annualized return
+a <- mean(quarterly_6_cum_performance$RET) *0.01
+print((1+a)^12-1)
+
+# Annualized
+#converted to time series data
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+annual_tseri_quarterly_6_cum_performance <- Return.annualized(tseri_quarterly_6_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_6_cum_performance
+
+StdDev.annualized(tseri_quarterly_6_cum_performance)
+
+
+# Turnover
+Turnover_6_cum <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_6_cum <- Turnover_6_cum %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_cum$sigma))
+print(n_distinct(Turnover_6_cum$ym))
+print(sum(Turnover_6_cum$sigma)/n_distinct(Turnover_6_cum$ym)/2)
+
+
+# Effective N 
+Effective_N_6_cum <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_6_cum$sigma_i)/n_distinct(Effective_N_6_cum$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_6_cum_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_3_mean_20
+```{r}
+t5 <- weighted_result_quarterly_3_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  dplyr::select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+# Average number of stock
+num_3_mean <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_3_mean$n))
+
+hist(num_3_mean$n)
+
+ggplot(num_3_mean, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")+
+  theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+print(mean(quarterly_3_mean_performance$RET))
+print(sd(quarterly_3_mean_performance$RET))
+print(mean(quarterly_3_mean_performance$RET)/sd(quarterly_3_mean_performance$RET))
+
+# annualized return
+a <- mean(quarterly_3_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+# Annualized
+#converted to time series data
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_3_mean_performance$ym)
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+
+annual_tseri_quarterly_3_mean_performance <- Return.annualized(tseri_quarterly_3_mean_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_mean_performance
+
+StdDev.annualized(tseri_quarterly_3_mean_performance)
+
+# Turnover
+Turnover_3_mean <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_3_mean <- Turnover_3_mean %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_mean$sigma))
+print(n_distinct(Turnover_3_mean$ym))
+print(sum(Turnover_3_mean$sigma)/n_distinct(Turnover_3_mean$ym)/2)
+
+
+# Effective N 
+Effective_N_3_mean <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_3_mean$sigma_i)/n_distinct(Effective_N_3_mean$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_mean_performance$RET, 1 - confidence_level)
+print(VaR)
+
+```
+
+#### quarterly_3_cum_20
+```{r}
+t5 <- weighted_result_quarterly_3_cum_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5$ym)
+
+class(DS.monthly$ym)
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_3_cum_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+# Average number of stock
+num_3_cum <- t7 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_3_cum$n))
+
+ggplot(num_3_cum, aes(n))+
+  geom_histogram()+
+  xlab("Number of stocks in a portfolio")+
+  theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+print(mean(quarterly_3_cum_performance$RET))
+print(sd(quarterly_3_cum_performance$RET))
+print(mean(quarterly_3_cum_performance$RET)/sd(quarterly_3_cum_performance$RET))
+
+# annualized return
+a <- mean(quarterly_3_cum_performance$RET) *0.01
+print((1+a)^12-1)
+
+# Annualized
+#converted to time series data
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_3_cum_performance$ym)
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+StdDev.annualized(tseri_quarterly_3_cum_performance)
+
+
+# Turnover
+Turnover_3_cum <- t5 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_3_cum <- Turnover_3_cum %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_cum$sigma))
+print(n_distinct(Turnover_3_cum$ym))
+print(sum(Turnover_3_cum$sigma)/n_distinct(Turnover_3_cum$ym)/2)
+
+
+# Effective N 
+Effective_N_3_cum <- t7 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_3_cum$sigma_i)/n_distinct(Effective_N_3_cum$ym))
+
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_3_cum_performance$RET, 1 - confidence_level)
+print(VaR)
+
+```
+
+####quarterly_3_var_20
+```{r}
+t5_3_var_20 <- weighted_result_quarterly_3_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5_3_var_20$ym)
+
+class(DS.monthly$ym)
+t5_3_var_20$ym <- as.Date(t5_3_var_20$ym)
+
+t6_3_var_20 <- DS.monthly %>%
+  full_join(t5_3_var_20, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7_3_var_20 <- t6_3_var_20 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym) 
+
+
+quarterly_3_var_performance <- t7_3_var_20  %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup %>% filter(ym >= "1990-01-01")
+
+# expected return
+print(mean(quarterly_3_var_performance$RET))
+# volatility
+print(sd(quarterly_3_var_performance$RET))
+# sharpe ratio
+print(mean(quarterly_3_var_performance$RET)/sd(quarterly_3_var_performance$RET))
+
+write.csv(quarterly_3_var_performance, file = "var_3_performance.csv")
+
+#annualized_return
+anualized_return <- (1+mean(quarterly_3_var_performance$RET) *0.01)^12-1
+print(anualized_return)
+
+#cumulative return
+quarterly_3_var_performance$ym <- as.Date(as.yearmon(quarterly_3_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_var_performance <- quarterly_3_var_performance[,2]
+rownames(tseri_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
+cumu_quarterly_3_var_performance <- cumsum(tseri_quarterly_3_var_performance)
+
+rownames(cumu_quarterly_3_var_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_var_performance,file = "3_var_cumulative_return.csv")
+
+# Average number of stock
+num_3_var <- t7_3_var_20 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_3_var$n))
+
+# Turnover
+Turnover_3_var <- t5_3_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  mutate(weight_1 = replace_na(weight_1, 0)) %>% 
+  ungroup 
+
+Turnover_3_var <- Turnover_3_var %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_3_var$sigma))
+print(n_distinct(Turnover_3_var$ym))
+print(sum(Turnover_3_var$sigma)/n_distinct(Turnover_3_var$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_3_var <- t7_3_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
+
+```
+
+####quarterly_5_var_20
+```{r}
+t5_5_var_20 <- weighted_result_quarterly_5_var_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+class(t5_5_var_20$ym)
+
+class(DS.monthly$ym)
+t5_5_var_20$ym <- as.Date(t5_5_var_20$ym)
+
+t6_5_var_20 <- DS.monthly %>%
+  full_join(t5_5_var_20, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7_5_var_20 <- t6_5_var_20 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+quarterly_5_var_performance <- t7_5_var_20 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup %>% filter(ym >= "1990-01-01")
+
+print(mean(quarterly_5_var_performance$RET))
+print(sd(quarterly_5_var_performance$RET))
+print(mean(quarterly_5_var_performance$RET)/sd(quarterly_5_var_performance$RET))
+
+
+write.csv(quarterly_5_var_performance, file = "var_5_performance.csv")
+
+#annualized_return
+anualized_return <- (1+mean(quarterly_5_var_performance$RET) *0.01)^12-1
+print(anualized_return)
+
+#cumulative return
+quarterly_5_var_performance$ym <- as.Date(as.yearmon(quarterly_5_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_5_var_performance <- quarterly_5_var_performance[,2]
+rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
+
+rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+
+# Average number of stock
+num_5_var <- t7_5_var_20 %>% 
+  filter(weight != 0) %>% 
+  group_by(ym) %>% 
+  summarise(n = n())
+
+print(mean(num_5_var$n))
+
+# Turnover
+Turnover_5_var <- t5_5_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_5_var <- Turnover_5_var %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_5_var$sigma))
+print(n_distinct(Turnover_5_var$ym))
+print(sum(Turnover_5_var$sigma)/n_distinct(Turnover_5_var$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_5_var <- t7_5_var_20 %>% 
+  mutate(month = as.integer(format(as.Date(ym), "%m"))) %>% 
+  filter(month == 11) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_5_var$sigma_i)/n_distinct(Effectiv_N_5_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(quarterly_5_var_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
+#### equaliy weighted for best strategy(6_mean)
+```{r}
+## convert the date type of ym to "Date" in the original dataset
+load("~/SS23_Empirical-Asset-Pricing/Original_Dataset/GBR_DS_monthly.RData")
+load("~/SS23_Empirical-Asset-Pricing/Data/Stock_List/quarterly_6_mean_20.RData")
+
+DS.monthly$ym <- as.Date(as.yearmon(DS.monthly$ym,"%Y.%m"))
+DS.monthly$RET.USD <- DS.monthly$RET.USD/100
+
+##Convert date type to "date"in current portfolio dateframe
+current_data_df <- stock_20_6_mean36
+current_data_df$ym <- as.Date(as.yearmon(current_data_df$ym,"%Y.%m"))
+```
+
+```{r}
+##set lagging years and get date sequence
+lag_years <- 2
+get_previous_year <- function(date) {
+  year(date)<-year(date)-lag_years
+  return(seq.Date(from = date, by = "month", length.out = lag_years*12))
+}
+
+stock_ids <- unique(current_data_df$Id)
+
+## construct the equal weighting
+#get quarterly data
+equal_weighted_6_mean_20 <- weighted_result_quarterly_6_mean_20
+
+equal_weighted_6_mean_20 <- apply(weighted_result_quarterly_6_mean_20, 2, function(x) replace(x, TRUE, 0.05))
+
+equal_weighted_6_mean_20 <- as.data.frame(equal_weighted_6_mean_20)
+class(equal_weighted_6_mean_20)
+
+```
+
+```{r}
+equal_weighted_6_mean_20_complete <- equal_weighted_6_mean_20 %>%
+  mutate(ym=rownames(equal_weighted_6_mean_20)) %>%
+  mutate(ym=as.Date(ym, "%Y-%m-%d")) %>%
+  select(ym, everything()) %>%
+  mutate_all(~replace(., is.na(.), -Inf)) %>%
+  complete(ym = seq.Date(min(ym), as.Date("2021-12-01"), by="month")) %>%
+  fill(names(.), .direction= "down") %>%
+  mutate_all(~replace(., is.infinite(.), NA)) %>%
+  mutate(ym=format(ym, format="%Y-%m-%d"))
+```
+
+```{r}
+t5 <- equal_weighted_6_mean_20_complete %>% 
+  pivot_longer(cols = -ym, names_to = "Id", values_to = "weight")
+
+#class(t5$ym)
+#class(DS.monthly$ym)
+
+t5$ym <- as.Date(t5$ym)
+
+t6 <- DS.monthly %>%
+  full_join(t5, by = c("Id", "ym")) %>% 
+  select(Id, ym, weight, RET.USD)
+
+t7 <- t6 %>% 
+  filter(!is.na(weight) & !is.na(RET.USD)) %>% 
+  arrange(ym)
+
+equal_weighted_6_mean_performance <- t7 %>% 
+  group_by(ym) %>% 
+  summarise(RET = sum(weight * RET.USD)) %>% 
+  ungroup%>% 
+  filter(ym >= "1990-01-01")
+
+print(mean(equal_weighted_6_mean_performance$RET))
+print(sd(equal_weighted_6_mean_performance$RET))
+print(mean(equal_weighted_6_mean_performance$RET)/sd(equal_weighted_6_mean_performance$RET))
+
+# annualized return
+a <- mean(equal_weighted_6_mean_performance$RET) *0.01
+print((1+a)^12-1)
+
+
+```
+```{r}
+#cumulative return
+equal_weighted_6_mean_performance$ym <- as.Date(as.yearmon(equal_weighted_6_mean_performance$ym,"%Y.%m"))
+
+tseri_equal_6_mean_performance <- equal_weighted_6_mean_performance[,2]
+rownames(tseri_equal_6_mean_performance) <- equal_weighted_6_mean_performance$ym
+cumu_equal_6_mean_performance <- cumsum(tseri_equal_6_mean_performance)
+
+rownames(cumu_equal_6_mean_performance) <- equal_weighted_6_mean_performance$ym
+write.csv(cumu_equal_6_mean_performance,file = "equal_6_mean_cumulative_return.csv")
+
+# Turnover
+Turnover_6_mean_eq <- t5 %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup
+
+Turnover_6_mean_eq <- Turnover_6_mean_eq %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_6_mean_eq$sigma))
+print(n_distinct(Turnover_6_mean_eq$ym))
+print(sum(Turnover_6_mean_eq$sigma)/n_distinct(Turnover_6_mean_eq$ym)/2)
+
+
+# Effectiv N 
+Effectiv_N_6_mean <- t7 %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effectiv_N_3_var$sigma_i)/n_distinct(Effectiv_N_3_var$ym))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(equal_weighted_6_mean_performance$RET, 1 - confidence_level)
+print(VaR)
+```
+
+#### Market Return
+```{r}
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+```
+
+```{r}
+Market_weight <- Univariate_Sort_Set_big %>% 
+  select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>%
+  mutate(weight = MV.USD/sum(MV.USD,na.rm = TRUE)) %>% 
+  select(ym, Id, weight)
+```
+
+```{r}
+# Turnover
+Turnover_market <- Market_weight %>% 
+  mutate(month = substr(ym, 6, 7)) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>%
+  arrange(Id, ym) %>% 
+  group_by(Id) %>%
+  mutate(weight_1 = lead(weight)) %>% 
+  ungroup %>% 
+  mutate(weight_1 = replace_na(weight_1, 0))
+
+Turnover_market <- Turnover_market %>% 
+  mutate(abs = abs(weight_1 - weight))%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(abs))%>% 
+  mutate(sigma = replace_na(sigma, 0))
+
+print(sum(Turnover_market$sigma))
+print(n_distinct(Turnover_market$ym))
+print(sum(Turnover_market$sigma)/n_distinct(Turnover_market$ym)/2)
+
+
+# Effective N 
+Effective_N_market <- Market_weight %>% 
+  mutate(month = substr(ym, 6, 7)) %>% 
+  filter(month == 11) %>% 
+  mutate(weight = replace_na(weight, 0)) %>% 
+  mutate(w2 = weight^2)%>% 
+  group_by(ym) %>% 
+  summarise(sigma = sum(w2)) %>% 
+  mutate(sigma_i = sigma^(-1))
+
+print(sum(Effective_N_market$sigma_i)/n_distinct(Effective_N_market$ym))
+```
+
+### 12.3 Annualization, TE, IR
+#### Market Return
+```{r}
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+```
+
+```{r}
+Market_RET <- Univariate_Sort_Set_big %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup %>% 
+  arrange(ym, Id) %>% 
+  filter(ym >= "1990-01-01")
+
+Market_RET_ym <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET))
+
+Market_RET_ym <- Market_RET_ym %>% 
+  mutate(Market_RET = Market_RET*0.01)
+
+print(mean(Market_RET_ym$Market_RET))
+a <- mean(Market_RET_ym$Market_RET)
+print((1+a)^12-1)
+print(sd(Market_RET_ym$Market_RET))
+b <- sd(Market_RET_ym$Market_RET)
+print(b *sqrt(12))
+print(a/b)
+```
+
+```{r}
+annual_market_ret <- Market_RET_ym %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=Market_RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_MKT_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_MKT_RET.USD)
+
+mean(annual_market_ret$ANNUAL_MKT_RET.USD)
+sd(annual_market_ret$ANNUAL_MKT_RET.USD)
+print(mean(annual_market_ret$ANNUAL_MKT_RET.USD)/sd(annual_market_ret$ANNUAL_MKT_RET.USD))
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_market_ret$ANNUAL_MKT_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+
+#### quarterly_6_mean_performance
+```{r}
+annual_6_mean_performance <- quarterly_6_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_mean_performance <- annual_6_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_6_mean_performance$ANNUAL_RET.USD)
+sd(annual_6_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_6_mean_performance$ANNUAL_RET.USD)/sd(annual_6_mean_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+annual_6_mean_out_performance <- annual_6_mean_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD- ANNUAL_MKT_RET.USD)
+
+mean(annual_6_mean_out_performance$outperformance)
+
+TE <- sd(annual_6_mean_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_6_mean_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_6_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_6_cum_performance
+```{r}
+annual_6_cum_performance <- quarterly_6_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_6_cum_performance <- annual_6_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_6_cum_performance$ANNUAL_RET.USD)
+sd(annual_6_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_6_cum_performance$ANNUAL_RET.USD)/sd(annual_6_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_6_cum_out_performance <- annual_6_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_6_cum_out_performance$outperformance)
+
+TE <- sd(annual_6_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_6_cum_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_6_cum_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_3_mean_performance
+```{r}
+annual_3_mean_performance <- quarterly_3_mean_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_mean_performance <- annual_3_mean_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  dplyr::select(year, ANNUAL_RET.USD)
+
+mean(annual_3_mean_performance$ANNUAL_RET.USD)
+sd(annual_3_mean_performance$ANNUAL_RET.USD)
+print(mean(annual_3_mean_performance$ANNUAL_RET.USD)/sd(annual_3_mean_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_mean_out_performance <- annual_3_mean_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_mean_out_performance$outperformance)
+
+TE <- sd(annual_3_mean_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_mean_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_3_mean_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_3_cum_performance
+```{r}
+annual_3_cum_performance <- quarterly_3_cum_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_cum_performance <- annual_3_cum_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_3_cum_performance$ANNUAL_RET.USD)
+sd(annual_3_cum_performance$ANNUAL_RET.USD)
+print(mean(annual_3_cum_performance$ANNUAL_RET.USD)/sd(annual_3_cum_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_cum_out_performance <- annual_3_cum_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_cum_out_performance$outperformance)
+
+TE <- sd(annual_3_cum_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_cum_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_3_cum_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+#### quarterly_5_var_performance
+```{r}
+annual_5_var_performance <- quarterly_5_var_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_5_var_performance <- annual_5_var_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+mean(annual_5_var_performance$ANNUAL_RET.USD)
+sd(annual_5_var_performance$ANNUAL_RET.USD)
+print(mean(annual_5_var_performance$ANNUAL_RET.USD)/sd(annual_5_var_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_5_var_out_performance <- annual_5_var_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_5_var_out_performance$outperformance)
+
+TE <- sd(annual_5_var_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_5_var_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_5_var_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+
+
+```
+
+#### quarterly_3_var_performance
+```{r}
+annual_3_var_performance <- quarterly_3_var_performance %>%
+  mutate(ym = format(as.Date(ym), "%Y.%m")) %>% 
+  mutate(RET = RET*0.01)
+
+annual_3_var_performance <- annual_3_var_performance %>%
+  mutate(ym=as.yearmon(ym, "%Y.%m"), year=year(ym), RET.USD_PLUS_1=RET + 1) %>%
+  group_by(year) %>%
+    summarise(PROD=prod(RET.USD_PLUS_1)) %>%
+  ungroup() %>%
+  mutate(ANNUAL_RET.USD=(PROD-1)*100) %>%
+  select(year, ANNUAL_RET.USD)
+
+
+mean(annual_3_var_performance$ANNUAL_RET.USD)
+sd(annual_3_var_performance$ANNUAL_RET.USD)
+print(mean(annual_3_var_performance$ANNUAL_RET.USD)/sd(annual_3_var_performance$ANNUAL_RET.USD))
+```
+
+```{r}
+
+annual_3_var_out_performance <- annual_3_var_performance %>% 
+  inner_join(annual_market_ret, by = "year") %>% 
+  mutate(outperformance = ANNUAL_RET.USD - ANNUAL_MKT_RET.USD)
+
+mean(annual_3_var_out_performance$outperformance)
+
+TE <- sd(annual_3_var_out_performance$outperformance)
+print(TE)
+
+IR <- mean(annual_3_var_out_performance$outperformance)/TE
+print(IR)
+
+# value at risk
+confidence_level <- 0.95
+VaR <- quantile(annual_3_var_performance$ANNUAL_RET.USD, 1 - confidence_level)
+print(VaR)
+```
+
+
+
+
+## 13. Style Analysis
+
+```{r}
+load("~/Desktop/Empirical Asset Pricing/Repo/Submission/FF5F_Mom_Performance.RData")
+load("~/Desktop/Empirical Asset Pricing/Repo/Performance/visual_annual&cumulative_result/mean_6_performance.RData"
+)
+
+# benchmark performance
+Benchmark_Performace <- Market_RET[110:nrow(Market_RET),]
+save(Benchmark_Performace,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/Benchmark_Performace.RData")
+
+quarterly_6_mean_performance$ym <-
+  paste(
+    substr(quarterly_6_mean_performance$ym, 1, 4),
+    substr(quarterly_6_mean_performance$ym, 6, 7),
+    sep = "."
+  )
+
+quarterly_6_mean_performance$ym <- as.numeric(quarterly_6_mean_performance$ym)
+Our_Best_Performance <- quarterly_6_mean_performance
+save(Our_Best_Performance,file="/Users/yuruchen/Desktop/Empirical Asset Pricing/Repo/Submission/Our_Best_Performance.RData")
+
+
+StyleAnalysis_Set <-
+  merge(FF5F_Mom_Set, quarterly_6_mean_performance, by = "ym",all = 1) %>% 
+  na.omit()
+
+Style_Analysis_Model <-
+  lm(RET ~ RMRF + SMB + HML + CMA + RMW + WML, data = StyleAnalysis_Set)
+
+summary(Style_Analysis_Model)
+
+
+```
+
+
+## 14. visualization for cumulative return
+### Calculate Cumulative Return
+#### quarterly_6_mean
+```{r}
+#annualized
+#converted to time series data
+quarterly_6_mean_performance$ym <- as.Date(as.yearmon(quarterly_6_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_6_mean_performance <- quarterly_6_mean_performance[,2]
+rownames(tseri_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+# cumulative return
+cumu_quarterly_6_mean_performance <- cumsum(tseri_quarterly_6_mean_performance)
+rownames(cumu_quarterly_6_mean_performance) <- quarterly_6_mean_performance$ym
+
+write.csv(cumu_quarterly_6_mean_performance,file = "6_mean_cumulative_return.csv")
+```
+
+#### quarterly_3_mean
+```{r}
+quarterly_3_mean_performance$ym <- as.Date(as.yearmon(quarterly_3_mean_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_mean_performance <- quarterly_3_mean_performance[,2]
+rownames(tseri_quarterly_3_mean_performance) <- quarterly_3_mean_performance$ym
+cumu_quarterly_3_mean_performance <- cumsum(tseri_quarterly_3_mean_performance)
+
+rownames(cumu_quarterly_3_mean_performance) <- quarterly_3_var_performance$ym
+write.csv(cumu_quarterly_3_mean_performance,file = "3_mean_cumulative_return.csv")
+```
+
+#### quarterly_6_cum
+```{r}
+quarterly_6_cum_performance$ym <- as.Date(as.yearmon(quarterly_6_cum_performance$ym,"%Y.%m"))
+
+datelist <- as.list(quarterly_6_cum_performance$ym)
+
+tseri_quarterly_6_cum_performance <- quarterly_6_cum_performance[,2]
+rownames(tseri_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+# cumulative return
+cumu_quarterly_6_cum_performance <- cumsum(tseri_quarterly_6_cum_performance)
+rownames(cumu_quarterly_6_cum_performance) <- quarterly_6_cum_performance$ym
+
+write.csv(cumu_quarterly_6_cum_performance,file = "6_cum_cumulative_return.csv")
+```
+
+#### quarterly_3_cum
+```{r}
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = FALSE)
+annual_tseri_quarterly_3_cum_performance
+
+# cumulative return
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+write.csv(cumu_quarterly_3_cum_performance,file = "3_cum_cumulative_return.csv")
+```
+
+#### quarterly_5_var
+
+```{r}
+#cumulative return
+quarterly_5_var_performance$ym <- as.Date(as.yearmon(quarterly_5_var_performance$ym,"%Y.%m"))
+
+tseri_quarterly_5_var_performance <- quarterly_5_var_performance[,2]
+rownames(tseri_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+cumu_quarterly_5_var_performance <- cumsum(tseri_quarterly_5_var_performance)
+
+rownames(cumu_quarterly_5_var_performance) <- quarterly_5_var_performance$ym
+write.csv(cumu_quarterly_5_var_performance,file = "5_var_cumulative_return.csv")
+```
+
+#### quarterly_3_var
+```{r}
+quarterly_3_cum_performance$ym <- as.Date(as.yearmon(quarterly_3_cum_performance$ym,"%Y.%m"))
+
+tseri_quarterly_3_cum_performance <- quarterly_3_cum_performance[,2]
+rownames(tseri_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+
+annual_tseri_quarterly_3_cum_performance <- Return.annualized(tseri_quarterly_3_cum_performance,scale = 12, geometric = TRUE)
+annual_tseri_quarterly_3_cum_performance
+
+# cumulative return
+
+cumu_quarterly_3_cum_performance <- cumsum(tseri_quarterly_3_cum_performance)
+rownames(cumu_quarterly_3_cum_performance) <- quarterly_3_cum_performance$ym
+write.csv(cumu_quarterly_3_cum_performance,file = "3_var_cumulative_return.csv")
+```
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+theme_set(theme_minimal())
+library(readr)
+library(data.table)
+library(tidyr)
+
+X3_cum_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/3_cum_cumulative_return.csv", 
+                                     col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X3_cum_cumulative_return <- X3_cum_cumulative_return %>%
+  rename(X3_cum_cumulative_return=RET, date=`...1`)
+
+X3_var_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/3_var_cumulative_return.csv", 
+                                     col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X3_var_cumulative_return <- X3_var_cumulative_return %>%
+  rename(X3_var_cumulative_return=RET, date=`...1`)
+
+X3_mean_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/3_mean_cumulative_return.csv", 
+                                      col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X3_mean_cumulative_return <- X3_mean_cumulative_return %>%
+  rename(X3_mean_cumulative_return=RET, date=`...1`)
+
+X5_var_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/5_var_cumulative_return.csv", 
+                                     col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X5_var_cumulative_return <- X5_var_cumulative_return %>%
+  rename(X5_var_cumulative_return=RET, date=`...1`)
+
+X6_mean_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/6_mean_cumulative_return.csv", 
+                                      col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X6_mean_cumulative_return <- X6_mean_cumulative_return %>%
+  rename(X6_mean_cumulative_return=RET, date=`...1`)
+
+X6_cum_cumulative_return <- read_csv("Performance/visual_annual&cumulative_result/6_cum_cumulative_return.csv", 
+                                      col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X6_cum_cumulative_return <- X6_cum_cumulative_return %>%
+  rename(X6_cum_cumulative_return=RET, date=`...1`)
+
+X6_equal_mean_cumulative_return<- read_csv("Performance/visual_annual&cumulative_result/equal_6_mean_cumulative_return.csv", 
+                                           col_types = cols(...1 = col_date(format = "%Y-%m-%d")))
+X6_equal_mean_cumulative_return <- X6_equal_mean_cumulative_return %>%
+  rename(X6_equal_mean_cumulative_return=RET, date=`...1`)
+
+
+load("Univariate_Sort_Set.RData")
+Univariate_Sort_Set <- as.data.table(Univariate_Sort_Set)
+stock_size <- Univariate_Sort_Set
+setorder(stock_size, ym, -MV.USD)
+stock_big <- stock_size[!is.na(MV.USD), .(big = ifelse(((cumsum(MV.USD)/sum(MV.USD))>=0.9), 0, 1), Id), by=ym]
+stock_big <- stock_big[big==1, c("Id", "ym")]
+Univariate_Sort_Set_big <- merge(stock_big, Univariate_Sort_Set)
+
+
+Market_RET <- Univariate_Sort_Set_big %>% 
+  dplyr::select(Id, ym, RET.USD, MV.USD) %>% 
+  group_by(ym) %>% 
+  mutate(MRET = weighted.mean(RET.USD, coalesce(MV.USD, 0), na.rm = T)) %>% 
+  ungroup %>% 
+  arrange(ym, Id) %>% 
+  filter(ym >= "1990-01-01")
+
+Market_RET_ym <- Market_RET %>% 
+  group_by(ym) %>% 
+  summarise(Market_RET = mean(MRET)) %>%
+  mutate(date=as.Date(as.yearmon(ym, "%Y.%m"))) %>%
+  arrange(date) %>%
+  mutate(Benchmark=cumsum(Market_RET)) %>%
+  dplyr::select(date, Benchmark)
+
+merge.data <- merge(X3_cum_cumulative_return, X3_var_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X3_mean_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X5_var_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X6_mean_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X6_cum_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X6_cum_cumulative_return, all=TRUE)
+merge.data <- merge(merge.data, X6_equal_mean_cumulative_return, all = TRUE)
+merge.data <- merge(merge.data, Market_RET_ym, all=TRUE)
+
+
+merge.data <- merge.data %>%
+  rename(
+    `X3_cum` = X3_cum_cumulative_return,
+    `X3_var` = X3_var_cumulative_return,
+    `X3_roll` = X3_mean_cumulative_return,
+    `X5_var` = X5_var_cumulative_return,
+    `X6_roll` = X6_mean_cumulative_return,
+    `X6_cum` = X6_cum_cumulative_return,
+    `X6_roll(equal weight)` = X6_equal_mean_cumulative_return
+  )
+
+ # 6-factor rolling-window Lewellen
+    # 3-factor rolling-window Lewellen
+    # 6-factor cumulative Lewellen
+    # 3-factor cumulative Lewellen
+    # 5-factor VAR 
+    # 3-factor VAR 
+
+
+plot.data_cum <- merge.data %>%
+  dplyr::select(date,
+    `X6_roll`,
+    `X3_roll`,
+    `X6_cum`,
+    `X3_cum`,
+    `X5_var`, 
+    `X3_var`,
+    Benchmark) %>%
+  gather(key = "variable", value = "value", -date)%>% 
+  rename(Strategy = variable)
+
+plot.data_equal <- merge.data %>%
+  dplyr::select(date,
+    `X6_roll`,
+    `X6_roll(equal weight)`,
+    Benchmark) %>%
+  rename(`X6_roll(tangent portfolio)` = `X6_roll`) %>% 
+  gather(key = "variable", value = "value", -date)%>% 
+  rename(Strategy = variable)
+
+plot.data_cum$Strategy <- factor(
+  plot.data_cum$Strategy ,
+  levels = c(
+    "X6_roll",
+    "X3_roll",
+    "X6_cum",
+    "X3_cum",
+    "X5_var",
+    "X3_var",
+    "Benchmark"
+  )
+)
+
+plot.data_equal$Strategy <- factor(
+  plot.data_equal$Strategy ,
+  levels = c(
+    "X6_roll(tangent portfolio)",
+    "X6_roll(equal weight)",
+    "Benchmark"
+  )
+)
+
+ggplot(plot.data_cum, aes(x = date, y = value)) + 
+  geom_line(aes(color = Strategy), size=0.9)+
+  theme(
+    # panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #
+  ) +
+  ylab("Cumaulative Return (%)")+
+  xlab("Date")+
+   theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+
+
+
+ggplot(plot.data_equal, aes(x = date, y = value)) + 
+  geom_line(aes(color = Strategy), size=0.9)+
+  theme(
+    # panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #
+  ) +
+  ylab("Cumaulative Return (%)")+
+  xlab("Date")+
+   theme_bw() +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+```
+
+
+
+
+
+
+
